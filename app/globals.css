@@ -1,0 +1,393 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-display: swap;
+  font-family: "ROOM9 Display";
+  font-style: normal;
+  font-weight: 100 900;
+  src: url("/fonts/room9-geist.woff2") format("woff2");
+}
+
+@font-face {
+  font-display: swap;
+  font-family: "ROOM9 Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  src: url("/fonts/room9-geist-mono.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: dark;
+  background: #050505;
+  color: #f2f0ea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  min-width: 0;
+}
+
+html {
+  background: #050505;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  padding-bottom: 88px;
+  background:
+    radial-gradient(circle at 72% 18%, rgba(186, 255, 0, 0.08), transparent 30rem),
+    linear-gradient(180deg, #050505 0%, #020202 100%);
+  color: #f2f0ea;
+  font-family: "ROOM9 Display", Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+a,
+button,
+span,
+li,
+td,
+th,
+label {
+  overflow-wrap: anywhere;
+}
+
+.font-display {
+  font-family: "ROOM9 Display", "Arial Black", Impact, system-ui, sans-serif;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.font-mono {
+  font-family: "ROOM9 Mono", ui-monospace, SFMono-Regular, monospace;
+  letter-spacing: 0;
+}
+
+::selection {
+  background: #f4f2eb;
+  color: #000;
+}
+
+@layer components {
+  .room-page {
+    @apply min-h-screen bg-voidBlack text-bone;
+  }
+
+  .room-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .room-border {
+    @apply border border-roomBorder;
+  }
+
+  .room-card {
+    @apply border border-roomBorder bg-panelBlack;
+  }
+
+  .room-button {
+    @apply inline-flex min-h-10 items-center justify-center border border-roomBorder px-4 py-2 text-center font-mono text-[10px] font-black uppercase tracking-normal text-bone transition hover:border-bone hover:bg-inkPanel disabled:cursor-not-allowed disabled:border-line disabled:text-ash disabled:hover:bg-transparent disabled:hover:text-ash;
+  }
+
+  .room-button-solid {
+    @apply inline-flex min-h-10 items-center justify-center border border-acid bg-acid px-4 py-2 text-center font-mono text-[10px] font-black uppercase tracking-normal text-black transition hover:border-bone hover:bg-bone disabled:cursor-not-allowed disabled:border-line disabled:bg-line disabled:text-ash;
+  }
+
+  .room-input {
+    @apply w-full border border-roomBorder bg-black px-4 py-3 text-sm text-bone outline-none transition placeholder:text-neutral-600 focus:border-bone;
+  }
+
+  .room-label {
+    @apply mb-2 block font-mono text-[11px] uppercase tracking-normal text-ash;
+  }
+
+  .room-heading {
+    @apply font-display uppercase tracking-normal text-bone;
+  }
+
+  .room-muted {
+    @apply text-sm leading-6 text-ash;
+  }
+
+  .room-tiny {
+    @apply font-mono text-[10px] uppercase tracking-normal text-ash;
+  }
+
+  .room-safe-text {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .room-safe-title {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+    word-break: normal;
+  }
+
+  .room-one-line {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .room-clamp-2,
+  .room-clamp-3 {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+  }
+
+  .room-clamp-2 {
+    -webkit-line-clamp: 2;
+  }
+
+  .room-clamp-3 {
+    -webkit-line-clamp: 3;
+  }
+
+  .room-fluid-title {
+    font-size: clamp(2.5rem, 8vw, 8.25rem);
+    line-height: 0.88;
+  }
+
+  .room-fluid-subtitle {
+    font-size: clamp(1.5rem, 4vw, 3.5rem);
+    line-height: 0.95;
+  }
+
+  .room-grid-safe {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .room-glass-panel {
+    background: rgba(15, 15, 15, 0.78);
+    border: 1px solid rgba(242, 240, 234, 0.18);
+    box-shadow: 0 32px 96px rgba(0, 0, 0, 0.52);
+    backdrop-filter: blur(22px) saturate(1.2);
+  }
+
+  .room-photo {
+    background-image: url("/reference/explore.png");
+    background-repeat: no-repeat;
+    background-size: 1800px 1478px;
+    filter: grayscale(1) contrast(1.12);
+  }
+
+  .room-home-photo {
+    background-image: url("/reference/live-crowd-clean.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    filter: grayscale(0.15) contrast(1.08) brightness(0.74);
+  }
+
+  .room-profile-photo {
+    background-image: url("/reference/dj-profile.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center top;
+    filter: grayscale(1) contrast(1.15);
+  }
+
+  .room-stream-photo {
+    background-image: url("/reference/streams.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    filter: grayscale(1) contrast(1.08);
+  }
+
+  .room-auth-abstract {
+    background:
+      radial-gradient(circle at 54% 48%, rgba(255, 255, 255, 0.075), transparent 17rem),
+      linear-gradient(128deg, transparent 0 21%, rgba(255, 255, 255, 0.06) 21% 28%, transparent 28% 58%, rgba(255, 255, 255, 0.08) 58% 66%, transparent 66% 100%),
+      url("/reference/live-crowd-clean.png");
+    background-position: center;
+    background-size: cover;
+    filter: grayscale(1) contrast(1.18) brightness(0.44);
+  }
+
+  .room-row {
+    @apply border-b border-bone;
+  }
+
+  .room-outline-button {
+    @apply relative inline-flex min-h-10 items-center justify-center gap-2 overflow-hidden border border-roomBorder bg-black px-5 py-2 text-center font-mono text-[10px] font-black uppercase text-bone transition hover:border-bone hover:bg-inkPanel disabled:cursor-not-allowed disabled:border-line disabled:text-ash disabled:hover:bg-black disabled:hover:text-ash;
+  }
+
+  .room-white-button {
+    @apply relative inline-flex min-h-10 items-center justify-center gap-2 overflow-hidden border border-acid bg-acid px-5 py-2 text-center font-mono text-[10px] font-black uppercase text-black transition hover:border-bone hover:bg-bone disabled:cursor-not-allowed disabled:border-line disabled:bg-line disabled:text-ash;
+  }
+
+  .room-dashboard-panel {
+    @apply border-2 border-bone bg-black;
+  }
+}
+
+.room-scanline {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.room-soft-vignette {
+  background:
+    radial-gradient(circle at 72% 62%, rgba(186, 255, 0, 0.13), transparent 26rem),
+    radial-gradient(circle at 16% 18%, rgba(255, 255, 255, 0.045), transparent 20rem),
+    #050505;
+}
+
+.room-button,
+.room-button-solid,
+.room-outline-button,
+.room-white-button {
+  overflow: hidden;
+  position: relative;
+}
+
+.room-button::before,
+.room-button-solid::before,
+.room-outline-button::before,
+.room-white-button::before {
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.38) 48%, transparent 100%);
+  content: "";
+  height: 100%;
+  left: -140%;
+  position: absolute;
+  top: 0;
+  transform: skewX(-18deg);
+  transition: left 0.55s ease;
+  width: 80%;
+}
+
+.room-button:hover::before,
+.room-button-solid:hover::before,
+.room-outline-button:hover::before,
+.room-white-button:hover::before {
+  left: 140%;
+}
+
+.room-button > *,
+.room-button-solid > *,
+.room-outline-button > *,
+.room-white-button > * {
+  position: relative;
+  z-index: 1;
+}
+
+.room-live-bars span {
+  animation: roomBar 0.8s ease-in-out infinite alternate;
+  transform-origin: bottom;
+}
+
+.room-live-bars span:nth-child(2n) {
+  animation-duration: 1.1s;
+}
+
+.room-live-bars span:nth-child(3n) {
+  animation-duration: 0.65s;
+}
+
+.room-waveform-reactive span {
+  animation: roomReactiveWave 0.95s ease-in-out infinite alternate;
+  transform-origin: bottom;
+}
+
+.room-waveform-reactive span:nth-child(2n) {
+  animation-duration: 0.78s;
+}
+
+.room-waveform-reactive span:nth-child(3n) {
+  animation-duration: 1.18s;
+}
+
+.room-waveform-reactive span:nth-child(5n) {
+  animation-duration: 0.62s;
+}
+
+.room-wave-rect {
+  animation: roomReactiveWave 0.9s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.room-wave-rect:nth-of-type(2n) {
+  animation-duration: 0.72s;
+}
+
+.room-wave-rect:nth-of-type(3n) {
+  animation-duration: 1.08s;
+}
+
+@keyframes roomBar {
+  from {
+    transform: scaleY(0.18);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes roomReactiveWave {
+  0% {
+    transform: scaleY(0.72);
+  }
+
+  50% {
+    transform: scaleY(1.08);
+  }
+
+  100% {
+    transform: scaleY(0.84);
+  }
+}
+
+@keyframes roomTicker {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.room-ticker-track {
+  animation: roomTicker 18s linear infinite;
+}
