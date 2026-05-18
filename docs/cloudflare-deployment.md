@@ -83,6 +83,8 @@ export default defineCloudflareConfig();
 
 ## Deployment Flow
 
+### Local Deploy
+
 1. Keep local work on port `3001`:
 
    ```bash
@@ -142,3 +144,54 @@ npm run cf:deploy
 ```
 
 After deploying, rotate any token that was pasted into chat or shared outside a password manager.
+
+## GitHub -> Cloudflare Flow
+
+The repository now includes a GitHub Actions workflow:
+
+```text
+.github/workflows/cloudflare-deploy.yml
+```
+
+Use this when you want Cloudflare deployment to come from Git instead of a local terminal.
+
+Required GitHub repository secrets:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+NEXT_PUBLIC_ROOM9_DEMO_MODE
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+```
+
+Recommended process:
+
+1. Push `main` to GitHub.
+2. Add the secrets above in GitHub: Settings -> Secrets and variables -> Actions.
+3. Push to `main` or run the workflow manually from the Actions tab.
+4. Check the deployed Worker URL.
+
+Do not commit `.env.local`, Cloudflare API tokens, Supabase secret keys, or service role keys.
+
+## Cloudflare CPU Limit Fix
+
+The previous demo audio endpoint generated WAV audio inside the Worker. That is too expensive for Cloudflare Workers and can produce:
+
+```text
+Worker exceeded CPU time limit.
+```
+
+ROOM_9 now serves demo audio as static files from:
+
+```text
+public/demo-audio/
+```
+
+The old compatibility route:
+
+```text
+/api/demo-audio/[id]
+```
+
+now performs a fast `308` redirect to the matching static WAV file for both `GET` and `HEAD`. This keeps old links working while preventing CPU-heavy audio generation at the edge.

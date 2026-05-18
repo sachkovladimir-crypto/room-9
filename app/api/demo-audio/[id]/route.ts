@@ -9,7 +9,7 @@ const STATIC_AUDIO_BY_ID: Record<string, string> = {
   moncler: "/demo-audio/moncler.wav"
 };
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function redirectToStaticAudio({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const pathname = STATIC_AUDIO_BY_ID[id] ?? STATIC_AUDIO_BY_ID.moncler;
 
@@ -20,4 +20,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     },
     status: 308
   });
+}
+
+export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return redirectToStaticAudio(context);
+}
+
+export async function HEAD(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return redirectToStaticAudio(context);
 }

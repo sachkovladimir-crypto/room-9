@@ -75,7 +75,7 @@ The goal is a stable diploma demo: DJs create profiles and upload audio, organiz
 
 12. Open `http://localhost:3001` and test the demo flow below. The local dev script is pinned to port `3001` to avoid stale `3000` sessions during demos.
 
-13. Deploy to Vercel with the same environment variables, or prepare Cloudflare Workers deployment using `docs/cloudflare-deployment.md`.
+13. Deploy to Cloudflare Workers using `docs/cloudflare-deployment.md`. The recommended production path is GitHub -> GitHub Actions -> Cloudflare Workers.
 
 ## Supabase Troubleshooting
 
@@ -90,6 +90,31 @@ The goal is a stable diploma demo: DJs create profiles and upload audio, organiz
 - If rider upload says bucket `documents` is missing, run `supabase/schema.sql` again or create a public Supabase Storage bucket named `documents`.
 - Track audio files are stored in `tracks`; DJ avatars, DJ covers, track covers, playlist covers, and event images are stored in `images`; technical rider PDFs are stored in `documents`.
 - Browser console errors are prefixed with `[ROOM_9]` to make Supabase failures easier to find.
+
+## Git and Cloudflare Deployment
+
+The project is now prepared for Git-based deployment. Push `main` to GitHub and add these GitHub Actions secrets:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+NEXT_PUBLIC_ROOM9_DEMO_MODE
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID
+```
+
+The workflow at `.github/workflows/cloudflare-deploy.yml` runs:
+
+```bash
+npm ci
+npm run lint
+npm run build
+npm run cf:deploy
+```
+
+Do not commit `.env.local`, Cloudflare tokens, Supabase secret keys, or service role keys.
+
+If Cloudflare logs show `Worker exceeded CPU time limit`, confirm the latest code is deployed. Demo audio is now served from static files in `public/demo-audio/`, and the legacy `/api/demo-audio/[id]` route redirects to those files instead of generating WAV audio inside the Worker.
 
 ## Demo Scenario
 
@@ -176,6 +201,7 @@ Detailed diploma documents:
 - `docs/scaling-architecture.md`
 - `docs/performance-scalability.md`
 - `docs/security-scalability.md`
+- `docs/supabase-rls-audit.md`
 - `docs/ux-ui-scalability.md`
 - `docs/diploma-scalability-summary.md`
 - `docs/diploma-technical-summary.md`
