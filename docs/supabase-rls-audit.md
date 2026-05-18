@@ -8,6 +8,30 @@ This audit is based on the current `supabase/schema.sql`. It checks whether the 
 
 The current schema already has RLS enabled for all core public tables and storage buckets used by ROOM_9. The most important Sound Vault, booking, notification, event, and media tables are scoped by `auth.uid()` or by explicit booking/event ownership relationships.
 
+## Live Project Verification
+
+Checked against the connected Supabase project on 2026-05-18:
+
+- Project ref: `liedilmpafiugjsegcss`
+- Status: active and healthy.
+- Database: PostgreSQL 17.x.
+- Core public tables checked through Supabase MCP have RLS enabled.
+- Storage buckets checked through Supabase MCP:
+  - `tracks`: public demo audio bucket, 50 MB limit, MP3/WAV MIME types.
+  - `images`: public demo image bucket, 10 MB limit, JPG/PNG/WebP/GIF MIME types.
+  - `documents`: public demo rider/document bucket, 10 MB limit, PDF MIME type.
+
+Security advisor result:
+
+- `auth_leaked_password_protection`: warning. Supabase Auth leaked password protection is disabled. This is acceptable for a controlled diploma demo, but it should be enabled before a public release: [Supabase password security](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
+Performance advisor result:
+
+- Several policies trigger `auth_rls_initplan` warnings because some RLS checks call `auth.uid()` or helper logic directly inside policies. For scale, rewrite those expressions to use `(select auth.uid())` or equivalent cached helper checks.
+- Some tables have multiple permissive policies for the same role/action. This is understandable for demo readability, but production should merge overlapping policies where possible.
+- A few future/V3 tables have unindexed foreign keys (`admin_reports`, `payments`, `profile_views`, `reviews`, `track_plays`). Add covering indexes before those modules become active at product scale.
+- Many unused-index notices are expected because the project is still in demo/pre-release and has limited traffic. Do not remove indexes purely because of early unused warnings.
+
 ## User-Scoped Music Data
 
 | Surface | Tables | Current Access Model | Status |
