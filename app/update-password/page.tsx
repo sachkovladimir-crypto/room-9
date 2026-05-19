@@ -30,7 +30,23 @@ export default function UpdatePasswordPage() {
     let isMounted = true;
     const supabase = getSupabase();
 
-    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+    async function loadRecoverySession() {
+      const code = new URLSearchParams(window.location.search).get("code");
+
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          logSupabaseError("Password update direct code exchange failed", exchangeError);
+          if (isMounted) {
+            setError(formatSupabaseError(exchangeError, "Could not open the password recovery session."));
+          }
+          return;
+        }
+        window.history.replaceState({}, "", "/update-password");
+      }
+
+      const { data, error: sessionError } = await supabase.auth.getSession();
+
       if (!isMounted) {
         return;
       }
@@ -40,7 +56,9 @@ export default function UpdatePasswordPage() {
       }
 
       setHasRecoverySession(Boolean(data.session));
-    });
+    }
+
+    loadRecoverySession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || session) {
@@ -92,9 +110,10 @@ export default function UpdatePasswordPage() {
         return;
       }
 
+      await supabase.auth.signOut();
       setMessage("Password updated. Redirecting to login...");
       window.setTimeout(() => {
-        router.push("/login");
+        router.push("/login?reset=1");
       }, 900);
     } catch (caughtError) {
       logSupabaseError("Password update unexpected failure", caughtError);
@@ -172,7 +191,7 @@ export default function UpdatePasswordPage() {
           <button
             className="inline-flex min-h-12 w-full items-center justify-center border border-acidGreen bg-acidGreen px-5 py-3 font-mono text-xs font-black uppercase text-black transition hover:border-black hover:bg-black hover:text-bone disabled:opacity-50"
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !hasRecoverySession}
           >
             {isSubmitting ? "Updating..." : "Update Password"}
           </button>

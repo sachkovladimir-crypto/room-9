@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AuthSplitLayout, LightField, lightInputClass } from "@/components/AuthSplitLayout";
 import { MissingConfigNotice } from "@/components/AuthNotice";
+import { buildAuthCallbackUrl, getSafeNextPathFromLocation } from "@/lib/authFlow";
 import {
   formatSupabaseError,
   getSupabase,
@@ -14,29 +15,34 @@ import {
 import { loadRoleAccess } from "@/lib/roleAccess";
 import { hasRoleAccess, type Profile, type Role } from "@/lib/types";
 
-function getSafeNextPath() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const next = new URLSearchParams(window.location.search).get("next");
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return "";
-  }
-
-  return next;
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [registerHref, setRegisterHref] = useState("/register");
 
   useEffect(() => {
-    const nextPath = getSafeNextPath();
+    const nextPath = getSafeNextPathFromLocation();
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("verified") === "1") {
+      setNotice("Email confirmed. Log in to continue if ROOM_9 did not open the next screen automatically.");
+    }
+
+    if (params.get("reset") === "1") {
+      setNotice("Password updated. Log in with the new password.");
+    }
+
+    const authError = params.get("auth_error");
+    if (authError) {
+      setError(authError);
+    }
+
     if (nextPath) {
       setRegisterHref(`/register?next=${encodeURIComponent(nextPath)}`);
     }
@@ -49,6 +55,8 @@ export default function LoginPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setNotice("");
+    setNeedsVerification(false);
     setIsSubmitting(true);
 
     try {
@@ -60,7 +68,9 @@ export default function LoginPage() {
 
       if (loginError || !data.user) {
         logSupabaseError("Login signInWithPassword failed", loginError);
-        setError(formatSupabaseError(loginError, "Invalid email or password."));
+        const formattedError = formatSupabaseError(loginError, "Invalid email or password.");
+        setError(formattedError);
+        setNeedsVerification(formattedError.toLowerCase().includes("email is not confirmed"));
         setIsSubmitting(false);
         return;
       }
@@ -111,13 +121,57 @@ export default function LoginPage() {
 
       const profile = profileRow as Profile | null;
       const activeRoles: Role[] = profile ? await loadRoleAccess(supabase, profile.id, profile.role) : ["listener"];
-      const nextPath = getSafeNextPath();
+      const nextPath = getSafeNextPathFromLocation();
       router.push(nextPath || (hasRoleAccess(activeRoles, ["dj", "organizer", "venue", "admin"]) ? "/dashboard" : "/explore"));
       router.refresh();
     } catch (caughtError) {
       logSupabaseError("Login unexpected failure", caughtError);
       setError(formatSupabaseError(caughtError, "Unable to sign in."));
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    setError("");
+    setNotice("");
+
+    if (!email) {
+      setError("Enter your email first, then resend the verification link.");
+      return;
+    }
+
+    setIsResending(true);
+
+    try {
+      const supabase = getSupabase();
+      const nextPath = getSafeNextPathFromLocation("/explore");
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? buildAuthCallbackUrl({
+                  origin: window.location.origin,
+                  mode: "signup",
+                  next: nextPath
+                })
+              : undefined
+        }
+      });
+
+      if (resendError) {
+        logSupabaseError("Login resend verification failed", resendError);
+        setError(formatSupabaseError(resendError, "Could not resend verification email."));
+        return;
+      }
+
+      setNotice("Verification email sent again. Open the latest ROOM_9 confirmation link.");
+    } catch (caughtError) {
+      logSupabaseError("Login resend verification unexpected failure", caughtError);
+      setError(formatSupabaseError(caughtError, "Could not resend verification email."));
+    } finally {
+      setIsResending(false);
     }
   }
 
@@ -174,6 +228,17 @@ export default function LoginPage() {
           </div>
 
           {error ? <p className="border border-errorRed p-3 text-sm text-errorRed">{error}</p> : null}
+          {notice ? <p className="border border-black p-3 text-sm text-neutral-700">{notice}</p> : null}
+          {needsVerification ? (
+            <button
+              className="inline-flex min-h-11 w-full items-center justify-center border border-black px-5 py-3 font-mono text-xs font-black uppercase text-black transition hover:border-acidGreen hover:bg-acidGreen disabled:opacity-50"
+              type="button"
+              disabled={isResending}
+              onClick={handleResendVerification}
+            >
+              {isResending ? "Sending..." : "Resend Verification Email"}
+            </button>
+          ) : null}
 
           <button
             className="inline-flex min-h-12 w-full items-center justify-center border border-acidGreen bg-acidGreen px-5 py-3 font-mono text-xs font-black uppercase text-black transition hover:border-black hover:bg-black hover:text-bone disabled:opacity-50"

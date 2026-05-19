@@ -9,7 +9,10 @@ const hiddenFooterPrefixes = [
   "/track",
   "/booking",
   "/login",
-  "/register"
+  "/register",
+  "/forgot-password",
+  "/update-password",
+  "/auth/callback"
 ];
 
 export function SiteFooter() {

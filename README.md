@@ -59,7 +59,18 @@ The goal is a stable diploma demo: DJs create profiles and upload audio, organiz
 
    If the SQL bucket creation did not work in your project, create the buckets manually and keep them public for the MVP demo.
 
-9. In Supabase Auth settings, enable email/password auth. For the smoothest live demo, disable email confirmation so users can register and immediately continue.
+9. In Supabase Auth settings, enable email/password auth. For production-style auth, keep email confirmation enabled and configure redirect URLs:
+
+   ```text
+   Site URL:
+   http://localhost:3001
+
+   Additional Redirect URLs:
+   http://localhost:3001/auth/callback
+   https://room-9.room-9.workers.dev/auth/callback
+   ```
+
+   If you use a different Cloudflare/custom domain, add its `/auth/callback` URL too. For an emergency live demo you can disable email confirmation, but the app now supports the production flow through `/auth/callback`.
 
 10. Install dependencies:
 
@@ -139,6 +150,9 @@ If Cloudflare logs show `Worker exceeded CPU time limit`, confirm the latest cod
 ## Implemented
 
 - Email/password registration and login through Supabase.
+- Production-style auth callback at `/auth/callback` for email verification and password recovery.
+- Password reset flow through `/forgot-password` and `/update-password`.
+- Resend verification email action on login when Supabase reports an unconfirmed email.
 - Listener-first account creation with professional access stored in `profile_role_access`.
 - Role-aware redirect after login and unlock gates for DJ, Organizer, Venue, and Admin tooling.
 - Public DJ discovery grid on `/explore`.

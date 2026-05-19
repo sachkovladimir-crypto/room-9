@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AuthSplitLayout, LightField, lightInputClass } from "@/components/AuthSplitLayout";
 import { DemoModeNotice, MissingConfigNotice } from "@/components/AuthNotice";
+import { buildAuthCallbackUrl, getSafeNextPathFromLocation } from "@/lib/authFlow";
 import {
   formatSupabaseError,
   getSupabase,
@@ -48,17 +49,28 @@ export default function RegisterPage() {
       return;
     }
 
-    setIsSubmitting(true);
+      setIsSubmitting(true);
 
     try {
       const supabase = getSupabase();
-      const nextPath = getSafeNextPath();
+      const nextPath = getSafeNextPathFromLocation();
+      const postRegisterPath =
+        requestedAccess !== "listener"
+          ? `/dashboard/settings?unlock=${requestedAccess}&next=${encodeURIComponent(nextPath || "/explore")}`
+          : nextPath || getPostAuthPath("listener");
+      const emailRedirectTo =
+        typeof window !== "undefined"
+          ? buildAuthCallbackUrl({
+              origin: window.location.origin,
+              mode: "signup",
+              next: postRegisterPath
+            })
+          : undefined;
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo:
-            typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
+          emailRedirectTo,
           data: { role: "listener", requested_access: requestedAccess, display_name: displayName }
         }
       });
@@ -78,7 +90,7 @@ export default function RegisterPage() {
 
       if (!data.session) {
         setMessage(
-          "Account created, but Supabase email confirmation is enabled. Confirm the email before logging in, or disable email confirmation in Supabase Auth > Providers > Email for the diploma demo."
+          "Verification email sent. Open the ROOM_9 confirmation link to activate the account and continue to the next screen."
         );
         setIsSubmitting(false);
         return;
@@ -102,10 +114,6 @@ export default function RegisterPage() {
         return;
       }
 
-      const postRegisterPath =
-        requestedAccess !== "listener"
-          ? `/dashboard/settings?unlock=${requestedAccess}&next=${encodeURIComponent(nextPath || "/explore")}`
-          : nextPath || getPostAuthPath("listener");
       router.push(postRegisterPath);
       router.refresh();
     } catch (caughtError) {
@@ -230,17 +238,4 @@ export default function RegisterPage() {
       </div>
     </AuthSplitLayout>
   );
-}
-
-function getSafeNextPath() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const next = new URLSearchParams(window.location.search).get("next");
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return "";
-  }
-
-  return next;
 }

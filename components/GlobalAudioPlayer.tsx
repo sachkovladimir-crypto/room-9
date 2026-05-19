@@ -360,7 +360,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     : "";
   const hidePlayer =
     pathname?.startsWith("/login") ||
-    pathname?.startsWith("/register");
+    pathname?.startsWith("/register") ||
+    pathname?.startsWith("/forgot-password") ||
+    pathname?.startsWith("/update-password") ||
+    pathname?.startsWith("/auth/callback");
 
   return (
     <AudioPlayerContext.Provider value={value}>

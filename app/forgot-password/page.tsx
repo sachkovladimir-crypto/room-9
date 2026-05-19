@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { AuthSplitLayout, LightField, lightInputClass } from "@/components/AuthSplitLayout";
 import { MissingConfigNotice } from "@/components/AuthNotice";
+import { buildAuthCallbackUrl } from "@/lib/authFlow";
 import {
   formatSupabaseError,
   getSupabase,
@@ -30,7 +31,13 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = getSupabase();
       const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/update-password` : undefined;
+        typeof window !== "undefined"
+          ? buildAuthCallbackUrl({
+              origin: window.location.origin,
+              mode: "recovery",
+              next: "/update-password"
+            })
+          : undefined;
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo
@@ -43,7 +50,7 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      setMessage("Password reset link sent. Check your email and open the ROOM_9 recovery link.");
+      setMessage("Password reset link sent. Open the latest ROOM_9 recovery email to set a new password.");
     } catch (caughtError) {
       logSupabaseError("Password reset unexpected failure", caughtError);
       setError(formatSupabaseError(caughtError, "Could not send password reset email."));

@@ -30,6 +30,9 @@ export function SiteHeader() {
     pathname?.startsWith("/booking") ||
     pathname?.startsWith("/login") ||
     pathname?.startsWith("/register") ||
+    pathname?.startsWith("/forgot-password") ||
+    pathname?.startsWith("/update-password") ||
+    pathname?.startsWith("/auth/callback") ||
     pathname?.startsWith("/booking/details");
 
   useEffect(() => {

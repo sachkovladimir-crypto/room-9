@@ -142,6 +142,22 @@ export function formatSupabaseError(error: unknown, fallback = "Supabase request
   }
 
   if (
+    errorLike.code === "email_not_confirmed" ||
+    lowerMessage.includes("email not confirmed") ||
+    lowerMessage.includes("email is not confirmed")
+  ) {
+    return [
+      "Email is not confirmed.",
+      "Open the latest ROOM_9 verification email before logging in.",
+      "If the link expired, use Resend Verification Email on the login page."
+    ].join(" ");
+  }
+
+  if (lowerMessage.includes("weak password") || errorLike.code === "weak_password") {
+    return `${fallback} Password is too weak. Use at least 8 characters with a letter and a number. ${message}`;
+  }
+
+  if (
     errorLike.code === "42P01" ||
     errorLike.code === "PGRST205" ||
     errorLike.code === "PGRST204" ||
