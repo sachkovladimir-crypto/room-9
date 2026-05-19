@@ -1,12 +1,84 @@
 # ROOM_9 Supabase RLS Audit
 
-Date: 2026-05-18
+Date: 2026-05-19
 
 This audit is based on the current `supabase/schema.sql`. It checks whether the main pre-release data surfaces are user-scoped and safe for a diploma demo without using a frontend `service_role` key.
 
 ## Result
 
 The current schema already has RLS enabled for all core public tables and storage buckets used by ROOM_9. The most important Sound Vault, booking, notification, event, and media tables are scoped by `auth.uid()` or by explicit booking/event ownership relationships.
+
+## May 19 Code-Level Scope Check
+
+The current `supabase/schema.sql` was re-checked for the data surfaces that can leak between accounts:
+
+| Surface | Required scope | Policy result |
+| --- | --- | --- |
+| `playlists` | Only owner can insert/update/delete; authenticated users can read own playlists and public playlists | OK |
+| `playlist_tracks` | Track membership can only be changed when the parent playlist belongs to `auth.uid()` | OK |
+| `saved_moments` | Users can manage own Atmosphere Briefs; target DJ can only update case-linked moment state through booking/event relationships | OK |
+| `saved_tracks` | Users can select/insert/delete only own liked/saved track rows | OK |
+| `notifications` | Users can read/update/delete own notifications; insert is limited to self, booking counterparty, or admin | OK |
+| `bookings` | Organizer/Venue can insert own requests; organizer, target DJ, and admin can read/update related rows | OK |
+| `events` | Public events can be read; Organizer/Venue/Admin manage only their own events | OK |
+| `event_lineup_slots` | Event owner manages slots; target DJ can update slot state only through related booking | OK |
+| `track_audio_features` | Public can read features for public tracks; only track owner DJ can insert/update Music Lab models | OK |
+
+No frontend `service_role` usage should be introduced. The frontend continues to use the public anon/publishable key and relies on RLS for account isolation.
+
+Recommended live verification with two accounts remains mandatory before defense because schema review proves policy intent, while live testing proves Supabase project state matches the repository.
+
+### SQL verification snippets
+
+Run in Supabase SQL Editor to confirm RLS is enabled:
+
+```sql
+select
+  n.nspname as schema,
+  c.relname as table_name,
+  c.relrowsecurity as rls_enabled
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public'
+and c.relname in (
+  'playlists',
+  'playlist_tracks',
+  'saved_moments',
+  'saved_tracks',
+  'notifications',
+  'bookings',
+  'events',
+  'event_lineup_slots',
+  'track_audio_features'
+)
+order by c.relname;
+```
+
+Run this to inspect current policies:
+
+```sql
+select
+  tablename,
+  policyname,
+  cmd,
+  roles,
+  qual,
+  with_check
+from pg_policies
+where schemaname = 'public'
+and tablename in (
+  'playlists',
+  'playlist_tracks',
+  'saved_moments',
+  'saved_tracks',
+  'notifications',
+  'bookings',
+  'events',
+  'event_lineup_slots',
+  'track_audio_features'
+)
+order by tablename, policyname;
+```
 
 ## Live Project Verification
 

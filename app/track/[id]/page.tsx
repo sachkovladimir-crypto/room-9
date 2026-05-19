@@ -49,6 +49,7 @@ import {
   getTrackMoments,
   type TrackMoment
 } from "@/lib/trackMoments";
+import { formatSignalScore, scoreTrackSignal } from "@/lib/signalEngine";
 import type { DjProfile, TrackAudioFeature, Work } from "@/lib/types";
 import { createFallbackWaveform, extractWaveformPeaks } from "@/lib/waveform";
 
@@ -101,6 +102,10 @@ export default function TrackPage() {
   const momentReady = selectedMoment.timestampKnown;
   const plays = work?.play_count ?? 0;
   const saves = work?.like_count ?? 0;
+  const trackSignal = useMemo(
+    () => (work ? scoreTrackSignal({ dj, features: trackFeature, work }) : null),
+    [dj, trackFeature, work]
+  );
 
   const playerTrack = useMemo(
     () =>
@@ -712,6 +717,31 @@ export default function TrackPage() {
               </Link>
             ) : null}
           </Panel>
+
+          {trackSignal ? (
+            <Panel className="p-6">
+              <SectionHeader eyebrow="Signal Engine" title={`${formatSignalScore(trackSignal.soundMatch)} sound match`} />
+              <div className="mt-5 grid grid-cols-3 gap-px bg-roomBorder">
+                <TrustCell label="Booking fit" value={formatSignalScore(trackSignal.bookingFit)} />
+                <TrustCell label="Energy" value={String(trackSignal.energy)} />
+                <TrustCell label="Confidence" value={formatSignalScore(trackSignal.featureConfidence)} />
+              </div>
+              <div className="mt-5 space-y-2">
+                {trackSignal.reasons.slice(0, 3).map((reason, index) => (
+                  <p className="border border-roomBorder bg-black p-3 text-xs leading-5 text-mutedText" key={`track-signal-reason-${index}`}>
+                    {reason}
+                  </p>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {[...trackSignal.tags, ...trackSignal.soundDna, ...trackSignal.roomFit].slice(0, 7).map((tag, index) => (
+                  <span className="border border-roomBorder px-2 py-1 font-mono text-[10px] uppercase text-ash" key={`track-signal-tag-${tag}-${index}`}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </Panel>
+          ) : null}
 
           <Panel className="p-6">
             <SectionHeader eyebrow="Personal scope" title="Add To Playlist" />

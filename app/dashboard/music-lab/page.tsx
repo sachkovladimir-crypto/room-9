@@ -126,6 +126,50 @@ export default function MusicLabPage() {
   const selectedCue = cues.find((cue) => cue.id === selectedCueId) ?? cues[2] ?? null;
   const duration = selectedWork?.duration_seconds ?? 360;
   const cueRatio = selectedCue ? clampTrackTimestamp(selectedCue.seconds, duration) / Math.max(1, duration) : 0.61;
+  const roomTags = useMemo(() => splitList(metrics.roomFit), [metrics.roomFit]);
+  const soundTags = useMemo(() => splitList(metrics.soundDna), [metrics.soundDna]);
+  const dominantEq = useMemo(
+    () =>
+      eqFields.reduce(
+        (top, field) => {
+          const value = parseMetric(eq[field.key]) ?? 0;
+          return value > top.value ? { label: field.label, range: field.range, value } : top;
+        },
+        { label: "Neutral", range: "balanced", value: -1 }
+      ),
+    [eq]
+  );
+  const labAnalysis = useMemo(() => {
+    const energy = parseMetric(metrics.energy) ?? 0;
+    const groove = parseMetric(metrics.groove) ?? 0;
+    const density = parseMetric(metrics.density) ?? 0;
+    const primaryRoom = roomTags[0] ?? "room tba";
+    const primaryTag = soundTags[0] ?? selectedWork?.genre ?? "sound tba";
+    const bestSlot = energy >= 8 ? "Peak / closing slot" : groove >= 7 ? "Support / warmup slot" : "Opening / listening slot";
+
+    return [
+      {
+        label: "Recommendation bias",
+        value: `${primaryTag} / ${Math.round(Math.max(energy, groove, density))}/10`,
+        copy: "Signal Engine will push this track toward listeners and events with matching taste markers."
+      },
+      {
+        label: "Best event slot",
+        value: bestSlot,
+        copy: `Room fit prefers ${primaryRoom}. Saved moments can now be ranked against lineup slots.`
+      },
+      {
+        label: "EQ profile",
+        value: `${dominantEq.label} focus`,
+        copy: `${dominantEq.range}. Stored as DJ-facing metadata, not a mastering change.`
+      },
+      {
+        label: "Brief readiness",
+        value: selectedCue ? `${formatTrackTime(selectedCue.seconds)} ${getCompactCueTitle(selectedCue)}` : "Cue pending",
+        copy: "This cue can become an Atmosphere Brief on Track Page, Sound Vault, Event Desk and Booking Case."
+      }
+    ];
+  }, [dominantEq.label, dominantEq.range, metrics.density, metrics.energy, metrics.groove, roomTags, selectedCue, selectedWork?.genre, soundTags]);
 
   useEffect(() => {
     if (!hasSupabaseConfig()) {
@@ -660,6 +704,35 @@ export default function MusicLabPage() {
                         onChange={(event) => setEq((current) => ({ ...current, [field.key]: event.target.value }))}
                       />
                     </label>
+                  ))}
+                </div>
+              </Panel>
+
+              <Panel className="p-room-3">
+                <SectionHeader eyebrow="Analysis summary" title="Signal Output" />
+                <div className="mt-room-3 grid gap-room-2">
+                  {labAnalysis.map((item) => (
+                    <div className="border border-roomBorder bg-black p-room-2" key={item.label}>
+                      <div className="flex min-w-0 items-start justify-between gap-room-2">
+                        <Text className="min-w-0" variant="uiLabel">
+                          {item.label}
+                        </Text>
+                        <StatusBadge status="selected">ready</StatusBadge>
+                      </div>
+                      <Text className="mt-room-1 min-w-0 break-words text-lg" variant="title">
+                        {item.value}
+                      </Text>
+                      <Text className="mt-room-1" variant="small">
+                        {item.copy}
+                      </Text>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-room-3 flex flex-wrap gap-room-1">
+                  {[...soundTags, ...roomTags].slice(0, 8).map((tag, index) => (
+                    <span className="border border-roomBorder px-2 py-1 font-mono text-[9px] uppercase text-mutedText" key={`lab-tag-${tag}-${index}`}>
+                      {tag}
+                    </span>
                   ))}
                 </div>
               </Panel>

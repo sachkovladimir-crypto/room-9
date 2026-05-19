@@ -1012,11 +1012,22 @@ function ExplorePageContent() {
                     <div className="lg:col-start-2 lg:col-end-7">
                       <div className="grid gap-3 lg:grid-cols-[minmax(180px,1fr)_auto] lg:items-center">
                         <MiniWaveform active={current} seed={work.id} />
-                        <div className="flex items-center justify-between gap-3 font-mono text-[10px] uppercase text-mutedText">
-                          <span className={current ? "text-acidGreen" : "text-mutedText"}>{momentLabel}</span>
-                          <span>{work.play_count ?? 0} plays</span>
-                          <span>{work.like_count ?? 0} saves</span>
-                          <span className="hidden text-acidGreen md:inline">{signal.reasons[0]}</span>
+                        <div className="flex min-w-0 flex-wrap items-center gap-2 font-mono text-[10px] uppercase text-mutedText">
+                          <span className={cx("shrink-0", current ? "text-acidGreen" : "text-mutedText")}>{momentLabel}</span>
+                          <span className="shrink-0">{work.play_count ?? 0} plays</span>
+                          <span className="shrink-0">{work.like_count ?? 0} saves</span>
+                          <span className="shrink-0 border border-roomBorder px-2 py-1 text-acidGreen">Signal</span>
+                          <span className="min-w-0 max-w-full break-words text-mutedText md:max-w-[44ch]">
+                            {signal.reasons[0] ?? "Matched by genre, BPM and listener archive."}
+                          </span>
+                          {signal.tags.slice(0, 2).map((tag, tagIndex) => (
+                            <span
+                              className="shrink-0 border border-roomBorder px-2 py-1 text-ash"
+                              key={`${work.id}-signal-tag-${tag}-${tagIndex}`}
+                            >
+                              {tag}
+                            </span>
+                          ))}
                         </div>
                       </div>
                     </div>

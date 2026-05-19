@@ -44,6 +44,10 @@ Status, May 19, 2026:
 - Auth gained a proper password recovery path: `/forgot-password` sends a Supabase recovery email and `/update-password` lets the user set a stronger password from the recovery session.
 - Registration now uses one password quality model across the app: 8+ characters, one letter, one number.
 - Signal Engine is already implemented as a deterministic recommendation layer. It ranks tracks by genre, BPM, saved moments, playlists, room fit, energy, booking trust, and user archive behavior. The next step is to make these recommendations more visible and actionable across Sound Vault, Explore, Track Page and Event Desk.
+- Explore now exposes Signal Engine reasoning directly in result rows instead of hiding it as a score only.
+- Track Page now has a dedicated Signal Engine panel with sound match, booking fit, feature confidence, reasons and signal tags.
+- Music Lab now includes an Analysis Summary output: recommendation bias, best event slot, EQ focus and brief readiness. This makes the DJ workbench read as a signal editing tool, not a confusing decoration.
+- Supabase/RLS scope was re-audited in `docs/supabase-rls-audit.md` for playlists, playlist tracks, saved moments, saved tracks, notifications, bookings, events, event slots and Music Lab feature rows.
 
 ## 2. Main Recommendation
 
