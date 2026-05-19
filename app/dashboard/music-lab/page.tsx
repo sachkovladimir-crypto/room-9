@@ -170,6 +170,7 @@ export default function MusicLabPage() {
       }
     ];
   }, [dominantEq.label, dominantEq.range, metrics.density, metrics.energy, metrics.groove, roomTags, selectedCue, selectedWork?.genre, soundTags]);
+  const outputTags = useMemo(() => Array.from(new Set([...soundTags, ...roomTags])).slice(0, 8), [roomTags, soundTags]);
 
   useEffect(() => {
     if (!hasSupabaseConfig()) {
@@ -235,6 +236,7 @@ export default function MusicLabPage() {
             .eq("dj_id", loadedDj.id)
             .eq("is_deleted", false)
             .order("created_at", { ascending: false })
+            .limit(80)
         );
         if (worksError) {
           throw worksError;
@@ -245,7 +247,7 @@ export default function MusicLabPage() {
 
         if (loadedWorks.length > 0) {
           const { data: featureData, error: featureError } = await withSupabaseRetry("Music Lab features", () =>
-            supabase.from("track_audio_features").select("*").in("work_id", loadedWorks.map((work) => work.id))
+            supabase.from("track_audio_features").select("*").in("work_id", loadedWorks.map((work) => work.id).slice(0, 80))
           );
 
           if (featureError) {
@@ -729,7 +731,7 @@ export default function MusicLabPage() {
                   ))}
                 </div>
                 <div className="mt-room-3 flex flex-wrap gap-room-1">
-                  {[...soundTags, ...roomTags].slice(0, 8).map((tag, index) => (
+                  {outputTags.map((tag, index) => (
                     <span className="border border-roomBorder px-2 py-1 font-mono text-[9px] uppercase text-mutedText" key={`lab-tag-${tag}-${index}`}>
                       {tag}
                     </span>

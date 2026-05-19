@@ -71,7 +71,7 @@ export default function DashboardCalendarPage() {
 
       try {
         const supabase = getSupabase();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: sessionData, error: userError } = await supabase.auth.getSession();
 
         if (userError) {
           if (isMissingAuthSession(userError)) {
@@ -84,7 +84,8 @@ export default function DashboardCalendarPage() {
           return;
         }
 
-        if (!userData.user) {
+        const user = sessionData.session?.user ?? null;
+        if (!user) {
           router.push("/login?next=/dashboard/calendar");
           return;
         }
@@ -92,7 +93,7 @@ export default function DashboardCalendarPage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", userData.user.id)
+          .eq("id", user.id)
           .maybeSingle();
 
         if (profileError || !profileData) {
@@ -144,7 +145,8 @@ export default function DashboardCalendarPage() {
               .from("bookings")
               .select("*")
               .eq("dj_id", dj.id)
-              .order("event_date", { ascending: true });
+              .order("event_date", { ascending: true })
+              .limit(120);
 
             if (bookingError) {
               logSupabaseError("Dashboard calendar DJ bookings failed", bookingError);
@@ -159,9 +161,10 @@ export default function DashboardCalendarPage() {
                 .from("bookings")
                 .select("*")
                 .eq("organizer_id", loadedProfile.id)
-                .order("event_date", { ascending: true }),
+                .order("event_date", { ascending: true })
+                .limit(120),
               isBookingClientRole(loadedRoles)
-                ? supabase.from("events").select("*").eq("organizer_id", loadedProfile.id).order("event_date", { ascending: true })
+                ? supabase.from("events").select("*").eq("organizer_id", loadedProfile.id).order("event_date", { ascending: true }).limit(80)
                 : supabase.from("events").select("*").order("event_date", { ascending: true }).limit(8)
             ]);
 
@@ -172,7 +175,7 @@ export default function DashboardCalendarPage() {
             setBookings(loadedBookings);
             const ids = Array.from(new Set(loadedBookings.map((booking) => booking.dj_id)));
             if (ids.length > 0) {
-              const { data: djs } = await supabase.from("dj_profiles").select("*").in("id", ids);
+              const { data: djs } = await supabase.from("dj_profiles").select("*").in("id", ids.slice(0, 80));
               setDjLookup(
                 ((djs as DjProfile[]) ?? []).reduce<Record<string, DjProfile>>((acc, dj) => {
                   acc[dj.id] = dj;

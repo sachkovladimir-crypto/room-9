@@ -97,8 +97,8 @@ export default function DashboardPage() {
 
     try {
       const supabase = getSupabase();
-      const { data: userData, error: userError } = await withSupabaseTimeout(
-        supabase.auth.getUser(),
+      const { data: sessionData, error: userError } = await withSupabaseTimeout(
+        supabase.auth.getSession(),
         "Dashboard auth check"
       );
 
@@ -113,7 +113,8 @@ export default function DashboardPage() {
         return;
       }
 
-      if (!userData.user) {
+      const user = sessionData.session?.user ?? null;
+      if (!user) {
         router.push("/login?next=/dashboard");
         return;
       }
@@ -121,7 +122,7 @@ export default function DashboardPage() {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", userData.user.id)
+        .eq("id", user.id)
         .maybeSingle();
 
       if (profileError || !profileData) {

@@ -147,7 +147,8 @@ export async function readVaultSavedTrackIds(scope?: string | null) {
       .from("saved_tracks")
       .select("work_id")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(240);
 
     if (error) {
       logSupabaseError("Sound Vault saved tracks load failed", error);
@@ -286,7 +287,8 @@ export async function readVaultPlaylists(scope?: string | null): Promise<LocalPl
       .from("playlists")
       .select("id, name, description, cover_image, created_at, updated_at")
       .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
+      .order("updated_at", { ascending: false })
+      .limit(60);
 
     if (playlistError) {
       logSupabaseError("Sound Vault playlists load failed", playlistError);
@@ -304,7 +306,8 @@ export async function readVaultPlaylists(scope?: string | null): Promise<LocalPl
       .from("playlist_tracks")
       .select("playlist_id, work_id, position")
       .in("playlist_id", playlists.map((playlist) => playlist.id))
-      .order("position", { ascending: true });
+      .order("position", { ascending: true })
+      .limit(600);
 
     if (tracksError) {
       logSupabaseError("Sound Vault playlist tracks load failed", tracksError);
@@ -624,7 +627,8 @@ export async function readVaultSavedMoments(scope?: string | null): Promise<Loca
       .from("saved_moments")
       .select("*")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(160);
 
     if (error) {
       logSupabaseError("Sound Vault saved references load failed", error);
@@ -637,10 +641,10 @@ export async function readVaultSavedMoments(scope?: string | null): Promise<Loca
 
     const [{ data: workRows }, { data: djRows }] = await Promise.all([
       workIds.length > 0
-        ? getSupabase().from("works").select("id, title, bpm").in("id", workIds)
+        ? getSupabase().from("works").select("id, title, bpm").in("id", workIds.slice(0, 160))
         : Promise.resolve({ data: [] }),
       djIds.length > 0
-        ? getSupabase().from("dj_profiles").select("id, stage_name").in("id", djIds)
+        ? getSupabase().from("dj_profiles").select("id, stage_name").in("id", djIds.slice(0, 120))
         : Promise.resolve({ data: [] })
     ]);
 

@@ -52,7 +52,7 @@ export default function BookingDetailsPage() {
 
       try {
         const supabase = getSupabase();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: sessionData, error: userError } = await supabase.auth.getSession();
 
         if (userError) {
           if (isMissingAuthSession(userError)) {
@@ -65,7 +65,8 @@ export default function BookingDetailsPage() {
           return;
         }
 
-        if (!userData.user) {
+        const user = sessionData.session?.user ?? null;
+        if (!user) {
           router.push(`/login?next=${encodeURIComponent(`/booking/details/${params.bookingId}`)}`);
           return;
         }
@@ -73,7 +74,7 @@ export default function BookingDetailsPage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", userData.user.id)
+          .eq("id", user.id)
           .maybeSingle();
 
         if (profileError || !profileData) {

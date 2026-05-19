@@ -108,13 +108,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     const supabase = getSupabase();
     supabase.auth
-      .getUser()
+      .getSession()
       .then(({ data, error }) => {
         if (error && !isMissingAuthSession(error)) {
-          logSupabaseError("Audio player user scope load failed", error);
+          logSupabaseError("Audio player session scope load failed", error);
         }
 
-        const scope = data.user?.id ?? null;
+        const scope = data.session?.user?.id ?? null;
         setMusicScope(scope);
         readVaultSavedTrackIds(scope).then(setFavoriteTrackIds);
       })

@@ -273,12 +273,12 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
 
       try {
         const supabase = getSupabase();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: userData, error: userError } = await supabase.auth.getSession();
         if (userError && !isMissingAuthSession(userError)) {
           logSupabaseError("Sound Vault user scope failed", userError);
         }
 
-        const nextScope = userData.user?.id ?? null;
+        const nextScope = userData.session?.user?.id ?? null;
         setScope(nextScope);
 
         let loadedProfile: Profile | null = null;
@@ -323,7 +323,8 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
                 .from("works")
                 .select("*")
                 .eq("dj_id", loadedDjProfile.id)
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .limit(120);
 
               if (ownWorkError) {
                 logSupabaseError("Sound Vault DJ works lookup failed", ownWorkError);
@@ -335,7 +336,8 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
                 .from("releases")
                 .select("*")
                 .eq("dj_id", loadedDjProfile.id)
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .limit(60);
 
               if (releaseError) {
                 logSupabaseError("Sound Vault releases lookup failed", releaseError);
@@ -356,7 +358,8 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
                     .from("release_tracks")
                     .select("release_id, work_id, position")
                     .in("release_id", releaseIds)
-                    .order("position", { ascending: true });
+                    .order("position", { ascending: true })
+                    .limit(500);
 
                   if (releaseTrackError) {
                     logSupabaseError("Sound Vault release tracks lookup failed", releaseTrackError);
@@ -391,7 +394,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
 
         const ids = collectVaultWorkIds(nextFavorites, nextHistory, nextPlaylists, nextMoments);
         const demoLoadedWorks = demoWorks.filter((work) => ids.includes(work.id));
-        const supabaseIds = ids.filter(isUuidLike);
+        const supabaseIds = ids.filter(isUuidLike).slice(0, 160);
 
         let loadedWorks = demoLoadedWorks;
         if (supabaseIds.length > 0) {
@@ -418,7 +421,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
         setWorks(loadedWorks);
 
         const djIds = Array.from(new Set(loadedWorks.map((work) => work.dj_id).filter(Boolean)));
-        const realDjIds = djIds.filter(isUuidLike);
+        const realDjIds = djIds.filter(isUuidLike).slice(0, 80);
         const nextDjLookup = getDemoDjLookup();
         if (loadedDjProfile) {
           nextDjLookup[loadedDjProfile.id] = loadedDjProfile;

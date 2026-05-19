@@ -114,7 +114,7 @@ export default function DashboardStreamsPage() {
 
       try {
         const supabase = getSupabase();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: sessionData, error: userError } = await supabase.auth.getSession();
 
         if (userError) {
           if (isMissingAuthSession(userError)) {
@@ -127,7 +127,8 @@ export default function DashboardStreamsPage() {
           return;
         }
 
-        if (!userData.user) {
+        const user = sessionData.session?.user ?? null;
+        if (!user) {
           router.push("/login?next=/dashboard/streams");
           return;
         }
@@ -135,7 +136,7 @@ export default function DashboardStreamsPage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", userData.user.id)
+          .eq("id", user.id)
           .maybeSingle();
 
         if (profileError || !profileData) {
@@ -161,6 +162,7 @@ export default function DashboardStreamsPage() {
                 .select("*")
                 .eq("owner_id", loadedProfile.id)
                 .order("created_at", { ascending: false })
+                .limit(80)
             : supabase.from("live_streams").select("*").order("created_at", { ascending: false }).limit(8);
 
         const { data: streamData, error: streamError } = await streamQuery;

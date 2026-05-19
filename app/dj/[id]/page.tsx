@@ -54,8 +54,8 @@ export default function DjProfilePage() {
   const recordProfileView = useCallback(async (profile: DjProfile) => {
     try {
       const supabase = getSupabase();
-      const { data: userData } = await supabase.auth.getUser();
-      const viewerId = userData.user?.id ?? null;
+      const { data: userData } = await supabase.auth.getSession();
+      const viewerId = userData.session?.user?.id ?? null;
       const { error: viewError } = await supabase.from("profile_views").insert({
         dj_id: profile.id,
         viewer_id: viewerId
@@ -89,11 +89,11 @@ export default function DjProfilePage() {
 
       try {
         const supabase = getSupabase();
-        const { data: userData } = await supabase.auth.getUser();
+        const { data: userData } = await supabase.auth.getSession();
         const { error: playError } = await supabase.from("track_plays").insert({
           work_id: work.id,
           dj_id: dj.id,
-          listener_id: userData.user?.id ?? null
+          listener_id: userData.session?.user?.id ?? null
         });
 
         const nextPlayCount = (Number(work.play_count) || 0) + 1;
@@ -143,9 +143,14 @@ export default function DjProfilePage() {
         const [{ data: profileData, error: profileError }, { data: worksData, error: worksError }] =
           await Promise.all([
             supabase.from("dj_profiles").select("*").eq("id", params.id).maybeSingle(),
-            supabase.from("works").select("*").eq("dj_id", params.id).order("created_at", {
-              ascending: false
-            })
+            supabase
+              .from("works")
+              .select("*")
+              .eq("dj_id", params.id)
+              .eq("visibility", "public")
+              .or("is_deleted.is.null,is_deleted.eq.false")
+              .order("created_at", { ascending: false })
+              .limit(80)
           ]);
 
         if (profileError || worksError || !profileData) {
@@ -182,14 +187,14 @@ export default function DjProfilePage() {
   async function loadV2ProfileState(profile: DjProfile) {
     try {
       const supabase = getSupabase();
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData } = await supabase.auth.getSession();
       let currentProfile: Profile | null = null;
 
-      if (userData.user) {
+      if (userData.session?.user) {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", userData.user.id)
+          .eq("id", userData.session.user.id)
           .maybeSingle();
 
         if (profileError) {
@@ -208,7 +213,8 @@ export default function DjProfilePage() {
         .from("reviews")
         .select("*")
         .eq("reviewee_id", profile.user_id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(12);
 
       if (reviewsError) {
         logSupabaseError("DJ reviews load failed", reviewsError);
@@ -243,7 +249,8 @@ export default function DjProfilePage() {
         .select("*")
         .eq("dj_id", profile.id)
         .eq("visibility", "public")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(24);
 
       if (releaseError) {
         logSupabaseError("DJ releases load failed", releaseError);
@@ -265,7 +272,8 @@ export default function DjProfilePage() {
         .from("release_tracks")
         .select("release_id, work_id, position")
         .in("release_id", releaseIds)
-        .order("position", { ascending: true });
+        .order("position", { ascending: true })
+        .limit(300);
 
       if (releaseTrackError) {
         logSupabaseError("DJ release tracks load failed", releaseTrackError);

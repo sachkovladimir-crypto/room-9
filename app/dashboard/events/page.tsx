@@ -96,7 +96,7 @@ export default function DashboardEventsPage() {
 
       try {
         const supabase = getSupabase();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: sessionData, error: userError } = await supabase.auth.getSession();
 
         if (userError) {
           if (isMissingAuthSession(userError)) {
@@ -109,7 +109,8 @@ export default function DashboardEventsPage() {
           return;
         }
 
-        if (!userData.user) {
+        const user = sessionData.session?.user ?? null;
+        if (!user) {
           router.push("/login?next=/dashboard/events");
           return;
         }
@@ -117,7 +118,7 @@ export default function DashboardEventsPage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", userData.user.id)
+          .eq("id", user.id)
           .maybeSingle();
 
         if (profileError || !profileData) {
@@ -139,7 +140,7 @@ export default function DashboardEventsPage() {
 
         const eventQuery = supabase.from("events").select("*").order("event_date", { ascending: true });
         const { data: eventData, error: eventError } = isBookingClientRole(loadedRoles)
-          ? await eventQuery.eq("organizer_id", loadedProfile.id)
+          ? await eventQuery.eq("organizer_id", loadedProfile.id).limit(80)
           : await eventQuery.limit(12);
 
         if (eventError) {
@@ -157,8 +158,9 @@ export default function DashboardEventsPage() {
           const { data: slotData, error: slotError } = await supabase
             .from("event_lineup_slots")
             .select("*")
-            .in("event_id", eventIds)
-            .order("position", { ascending: true });
+            .in("event_id", eventIds.slice(0, 80))
+            .order("position", { ascending: true })
+            .limit(500);
 
           if (slotError) {
             logSupabaseError("Dashboard events lineup slots failed", slotError);
@@ -176,7 +178,8 @@ export default function DashboardEventsPage() {
             .from("bookings")
             .select("*")
             .eq("organizer_id", loadedProfile.id)
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .limit(120);
 
           if (bookingError) {
             logSupabaseError("Dashboard events bookings failed", bookingError);

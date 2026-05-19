@@ -57,7 +57,7 @@ export default function DashboardBookingsPage() {
 
       try {
         const supabase = getSupabase();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: sessionData, error: userError } = await supabase.auth.getSession();
 
         if (userError) {
           if (isMissingAuthSession(userError)) {
@@ -70,7 +70,8 @@ export default function DashboardBookingsPage() {
           return;
         }
 
-        if (!userData.user) {
+        const user = sessionData.session?.user ?? null;
+        if (!user) {
           router.push("/login?next=/dashboard/bookings");
           return;
         }
@@ -78,7 +79,7 @@ export default function DashboardBookingsPage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", userData.user.id)
+          .eq("id", user.id)
           .maybeSingle();
 
         if (profileError || !profileData) {
@@ -126,7 +127,8 @@ export default function DashboardBookingsPage() {
               .select("*")
               .eq("dj_id", dj.id)
               .or("archived_by_dj.is.null,archived_by_dj.eq.false")
-              .order("created_at", { ascending: false });
+              .order("created_at", { ascending: false })
+              .limit(80);
 
             if (bookingError) {
               logSupabaseError("Dashboard bookings DJ rows failed", bookingError);
@@ -143,7 +145,8 @@ export default function DashboardBookingsPage() {
             .select("*")
             .eq("organizer_id", loadedProfile.id)
             .or("archived_by_organizer.is.null,archived_by_organizer.eq.false")
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .limit(80);
 
           if (bookingError) {
             logSupabaseError("Dashboard bookings organizer rows failed", bookingError);
@@ -157,7 +160,7 @@ export default function DashboardBookingsPage() {
             const { data: djs, error: djsError } = await supabase
               .from("dj_profiles")
               .select("*")
-              .in("id", ids);
+              .in("id", ids.slice(0, 80));
 
             if (djsError) {
               logSupabaseError("Dashboard bookings DJ lookup failed", djsError);

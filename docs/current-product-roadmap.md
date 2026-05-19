@@ -53,6 +53,8 @@ Status, May 19, 2026:
 - Music Lab now includes an Analysis Summary output: recommendation bias, best event slot, EQ focus and brief readiness. This makes the DJ workbench read as a signal editing tool, not a confusing decoration.
 - Supabase/RLS scope was re-audited in `docs/supabase-rls-audit.md` for playlists, playlist tracks, saved moments, saved tracks, notifications, bookings, events, event slots and Music Lab feature rows.
 - Supabase Performance Advisor follow-up added the missing FK indexes for `admin_reports`, `payments`, `profile_views`, `reviews`, and `track_plays`, plus a matching `payments` update policy for the escrow preview layer.
+- Cloudflare performance follow-up moved client-side auth reads from `auth.getUser()` to `auth.getSession()` across public/workspace surfaces and added explicit limits to heavy workspace queries. This keeps RLS intact while reducing extra network roundtrips and Worker CPU pressure.
+- Live browser QA on `localhost:3001` confirmed Explore playback pause/resume works from the global player, the queue panel shows upcoming tracks, Track Page renders dynamic moments, Sound Vault nested routes resolve directly, Music Lab is accessible only for DJ/Admin, and Booking CRM renders as a professional offer board under the DJ account.
 
 ## 2. Main Recommendation
 
@@ -128,6 +130,14 @@ Status, May 18, 2026:
 - Sound Vault is moving from one overloaded terminal page into focused modes: Overview, Tracks, Briefs, Playlists, Uploads and Network. Modules can be hidden and restored so users control page density.
 - Sound Vault mode URLs now resolve directly (`/library/tracks`, `/library/moments`, `/library/playlists`, `/library/uploads`, `/library/network`) instead of bouncing through query redirects. This makes the IA presentable as real product sections while preserving the shared Vault implementation.
 - Booking CRM now supports a user-scoped remove/archive action. Cases are hidden from the current user's board without destroying the booking record for the other side.
+
+Status, May 19, 2026:
+
+- Client surfaces now use session scope instead of repeated user endpoint checks. This lowers Cloudflare Worker cost and avoids extra auth calls while Supabase RLS continues to enforce real table permissions.
+- Dashboard, Booking CRM, Event Desk, Calendar, Analytics, Streams, DJ Profile, Release Page, Track Page and Sound Vault now cap high-risk lists so public/workspace pages do not fetch unbounded rows.
+- Music Lab visual QA passed under a real DJ session: source queue, waveform, cue cards, cue editor, EQ sketch and signal output render without the previous broken cue-label layout.
+- Booking CRM visual QA passed under a real DJ session: role-locked Event Desk remains locked, professional offer metrics render cleanly, and no console errors were reported.
+- Production build passes after the performance and stability pass.
 
 Definition of done:
 

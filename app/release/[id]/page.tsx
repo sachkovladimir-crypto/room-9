@@ -115,7 +115,7 @@ export default function ReleasePage() {
           const { data: workData, error: workError } = await supabase
             .from("works")
             .select("*")
-            .in("id", trackIds)
+            .in("id", trackIds.slice(0, 80))
             .or("is_deleted.is.null,is_deleted.eq.false");
 
           if (workError) {
@@ -129,12 +129,12 @@ export default function ReleasePage() {
           }
         }
 
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: userData, error: userError } = await supabase.auth.getSession();
         if (userError && !isMissingAuthSession(userError)) {
           logSupabaseError("Release user scope load failed", userError);
         }
 
-        const scope = userData.user?.id ?? null;
+        const scope = userData.session?.user?.id ?? null;
         const loadedPlaylists = await readVaultPlaylists(scope);
 
         if (mounted) {

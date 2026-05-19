@@ -165,11 +165,11 @@ export default function TrackPage() {
 
       try {
         const supabase = getSupabase();
-        const { data: userData } = await supabase.auth.getUser();
+        const { data: userData } = await supabase.auth.getSession();
         const { error: playError } = await supabase.from("track_plays").insert({
           work_id: targetWork.id,
           dj_id: dj.id,
-          listener_id: userData.user?.id ?? null
+          listener_id: userData.session?.user?.id ?? null
         });
 
         const nextPlayCount = (Number(targetWork.play_count) || 0) + 1;
@@ -312,8 +312,8 @@ export default function TrackPage() {
     }
 
     getSupabase()
-      .auth.getUser()
-      .then(({ data }) => setMusicScope(data.user?.id ?? null))
+      .auth.getSession()
+      .then(({ data }) => setMusicScope(data.session?.user?.id ?? null))
       .catch((caughtError) => logSupabaseError("Track favorite scope load failed", caughtError));
   }, []);
 

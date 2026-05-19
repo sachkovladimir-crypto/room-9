@@ -33,9 +33,9 @@ export default function EventDetailsPage() {
 
       try {
         const supabase = getSupabase();
-        const [{ data: eventData, error: eventError }, { data: userData }] = await Promise.all([
+        const [{ data: eventData, error: eventError }, { data: sessionData }] = await Promise.all([
           supabase.from("events").select("*").eq("id", params.eventId).maybeSingle(),
-          supabase.auth.getUser()
+          supabase.auth.getSession()
         ]);
 
         if (eventError || !eventData) {
@@ -52,11 +52,12 @@ export default function EventDetailsPage() {
 
         setEvent(eventData as EventPost);
 
-        if (userData.user) {
+        const user = sessionData.session?.user ?? null;
+        if (user) {
           const { data: profileData, error: profileError } = await supabase
             .from("profiles")
             .select("*")
-            .eq("id", userData.user.id)
+            .eq("id", user.id)
             .maybeSingle();
 
           if (profileError) {

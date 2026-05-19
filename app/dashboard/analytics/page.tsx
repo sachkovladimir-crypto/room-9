@@ -56,7 +56,7 @@ export default function DashboardAnalyticsPage() {
 
       try {
         const supabase = getSupabase();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: sessionData, error: userError } = await supabase.auth.getSession();
 
         if (userError) {
           if (isMissingAuthSession(userError)) {
@@ -69,7 +69,8 @@ export default function DashboardAnalyticsPage() {
           return;
         }
 
-        if (!userData.user) {
+        const user = sessionData.session?.user ?? null;
+        if (!user) {
           router.push("/login?next=/dashboard/analytics");
           return;
         }
@@ -77,7 +78,7 @@ export default function DashboardAnalyticsPage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", userData.user.id)
+          .eq("id", user.id)
           .maybeSingle();
 
         if (profileError || !profileData) {
@@ -106,17 +107,17 @@ export default function DashboardAnalyticsPage() {
           setDjProfile(dj);
           if (dj) {
             const [{ data: bookingData }, { data: worksData }] = await Promise.all([
-              supabase.from("bookings").select("*").eq("dj_id", dj.id),
-              supabase.from("works").select("*").eq("dj_id", dj.id)
+              supabase.from("bookings").select("*").eq("dj_id", dj.id).order("created_at", { ascending: false }).limit(120),
+              supabase.from("works").select("*").eq("dj_id", dj.id).order("created_at", { ascending: false }).limit(120)
             ]);
             setBookings((bookingData as Booking[]) ?? []);
             setWorks(((worksData as Work[]) ?? []).filter((work) => !work.is_deleted));
           }
         } else {
           const [{ data: bookingData }, { data: eventData }] = await Promise.all([
-            supabase.from("bookings").select("*").eq("organizer_id", loadedProfile.id),
+            supabase.from("bookings").select("*").eq("organizer_id", loadedProfile.id).order("created_at", { ascending: false }).limit(120),
             isBookingClientRole(loadedRoles)
-              ? supabase.from("events").select("*").eq("organizer_id", loadedProfile.id)
+              ? supabase.from("events").select("*").eq("organizer_id", loadedProfile.id).order("event_date", { ascending: true }).limit(80)
               : supabase.from("events").select("*").limit(8)
           ]);
           setBookings((bookingData as Booking[]) ?? []);

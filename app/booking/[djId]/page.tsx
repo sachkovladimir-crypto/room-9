@@ -183,7 +183,7 @@ export default function BookingPage() {
           setSourceEvent(null);
         }
 
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: sessionData, error: userError } = await supabase.auth.getSession();
 
         if (userError && !isMissingAuthSession(userError)) {
           logSupabaseError("Booking auth user load failed", userError);
@@ -191,7 +191,8 @@ export default function BookingPage() {
           return;
         }
 
-        if (!userData.user) {
+        const user = sessionData.session?.user ?? null;
+        if (!user) {
           setProfile(null);
           return;
         }
@@ -199,7 +200,7 @@ export default function BookingPage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", userData.user.id)
+          .eq("id", user.id)
           .maybeSingle();
 
         if (profileError) {
