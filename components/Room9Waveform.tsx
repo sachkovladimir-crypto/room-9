@@ -48,7 +48,7 @@ export function Room9Waveform({
       ) : null}
       {normalizedPeaks.map((peak, index) => {
         const distance = Math.abs(index - selectedIndex);
-        const height = 5 + Math.round(peak * 34);
+        const height = `${14 + Math.round(peak * 78)}%`;
         const selected = distance <= 1;
         const played = progressIndex === null ? index <= selectedIndex : index <= progressIndex;
 
@@ -62,7 +62,8 @@ export function Room9Waveform({
             key={index}
             style={{
               animationDelay: `${-((index % 17) * 0.055)}s`,
-              height
+              height,
+              minHeight: 6
             }}
           />
         );

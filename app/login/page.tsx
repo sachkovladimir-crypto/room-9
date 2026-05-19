@@ -139,7 +139,7 @@ export default function LoginPage() {
               <input
                 className={lightInputClass}
                 id="email"
-                type="text"
+                type="email"
                 inputMode="email"
                 autoComplete="email"
                 value={email}
@@ -149,7 +149,18 @@ export default function LoginPage() {
               />
           </LightField>
 
-          <LightField id="password" label="Password">
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <label className="block font-mono text-sm font-black uppercase text-neutral-700" htmlFor="password">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500 underline underline-offset-4 hover:text-black"
+              >
+                Forgot?
+              </Link>
+            </div>
               <input
                 className={lightInputClass}
                 id="password"
@@ -160,7 +171,7 @@ export default function LoginPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 required
               />
-          </LightField>
+          </div>
 
           {error ? <p className="border border-errorRed p-3 text-sm text-errorRed">{error}</p> : null}
 

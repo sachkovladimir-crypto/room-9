@@ -11,6 +11,7 @@ import {
   hasSupabaseConfig,
   logSupabaseError
 } from "@/lib/supabase";
+import { getPasswordError, getPasswordChecks } from "@/lib/password";
 import { getPostAuthPath } from "@/lib/types";
 
 export default function RegisterPage() {
@@ -40,6 +41,13 @@ export default function RegisterPage() {
     event.preventDefault();
     setError("");
     setMessage("");
+
+    const passwordError = getPasswordError(password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -126,7 +134,7 @@ export default function RegisterPage() {
               <input
                 className={lightInputClass}
                 id="email"
-                type="text"
+                type="email"
                 inputMode="email"
                 autoComplete="email"
                 value={email}
@@ -160,6 +168,21 @@ export default function RegisterPage() {
                 required
                 placeholder="Minimum 8 characters"
               />
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {getPasswordChecks(password).map((check) => (
+                  <span
+                    className={`border px-3 py-2 font-mono text-[10px] font-black uppercase ${
+                      check.ok
+                        ? "border-acidGreen bg-acidGreen text-black"
+                        : "border-black/30 text-neutral-500"
+                    }`}
+                    key={check.label}
+                  >
+                    {check.ok ? "OK " : ""}
+                    {check.label}
+                  </span>
+                ))}
+              </div>
           </LightField>
 
           <section className="border-2 border-black bg-paperWhite p-5">

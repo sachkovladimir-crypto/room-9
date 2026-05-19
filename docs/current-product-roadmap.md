@@ -35,6 +35,16 @@ Current product status:
 
 The next work should focus on reliability, IA clarity, product flow, and only then the recommendation algorithm.
 
+Status, May 19, 2026:
+
+- Pre-release branch currently contains deployment documentation plus the active polish package for Music Lab, password recovery, and recommendation visibility.
+- Music Lab now has a clearer locked-state boundary: listener accounts can no longer land on a confusing half-open lab surface.
+- The shared waveform component was changed to scale inside tall and compact containers, so Music Lab, Track Page, DJ Dossier and Player can use the same visual language without leaving large empty blocks.
+- Music Lab now includes a lightweight EQ Sketch panel. It is not a mastering tool; it stores a DJ-facing signal profile that can feed recommendations, room fit, and sound evidence.
+- Auth gained a proper password recovery path: `/forgot-password` sends a Supabase recovery email and `/update-password` lets the user set a stronger password from the recovery session.
+- Registration now uses one password quality model across the app: 8+ characters, one letter, one number.
+- Signal Engine is already implemented as a deterministic recommendation layer. It ranks tracks by genre, BPM, saved moments, playlists, room fit, energy, booking trust, and user archive behavior. The next step is to make these recommendations more visible and actionable across Sound Vault, Explore, Track Page and Event Desk.
+
 ## 2. Main Recommendation
 
 Do not implement a heavy AI system first.
@@ -93,6 +103,14 @@ Priority:
   - Explore related artists should render real `avatar_url` / `cover_image_url` from Supabase before falling back to demo imagery.
   - DJ Dossier should show a visible avatar identity block, not only a cover background.
   - Settings media upload should create a DJ profile draft when avatar/cover/rider is uploaded before the profile has been saved.
+- Auth Stability Pass:
+  - Password reset email should redirect to `/update-password`.
+  - Supabase Auth redirect URLs must include local and deployed recovery URLs.
+  - Registration should stay listener-first while DJ / Organizer / Venue access unlocks in Settings.
+- Music Lab Stability Pass:
+  - Listener cannot bypass locked Music Lab.
+  - DJ/Admin sees a readable workbench: source track, adaptive waveform, cue points, EQ Sketch, analysis tags.
+  - Music Lab should feed track features and recommendation signals, not become a full DAW.
 
 Status, May 18, 2026:
 

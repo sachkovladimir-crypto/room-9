@@ -61,12 +61,28 @@ type LabMetrics = {
   soundDna: string;
 };
 
+type LabEq = {
+  sub: string;
+  low: string;
+  mid: string;
+  presence: string;
+  air: string;
+};
+
 const metricFields: Array<{ key: keyof Omit<LabMetrics, "roomFit" | "soundDna">; label: string }> = [
   { key: "energy", label: "Energy" },
   { key: "darkness", label: "Darkness" },
   { key: "groove", label: "Groove" },
   { key: "intensity", label: "Intensity" },
   { key: "density", label: "Density" }
+];
+
+const eqFields: Array<{ key: keyof LabEq; label: string; range: string }> = [
+  { key: "sub", label: "Sub", range: "30-80 Hz" },
+  { key: "low", label: "Low", range: "80-250 Hz" },
+  { key: "mid", label: "Mid", range: "250 Hz-2 kHz" },
+  { key: "presence", label: "Presence", range: "2-6 kHz" },
+  { key: "air", label: "Air", range: "6-14 kHz" }
 ];
 
 export default function MusicLabPage() {
@@ -89,6 +105,13 @@ export default function MusicLabPage() {
     soundDna: "industrial, hypnotic, hard groove"
   });
   const [labNote, setLabNote] = useState("");
+  const [eq, setEq] = useState<LabEq>({
+    air: "5",
+    low: "6",
+    mid: "5",
+    presence: "6",
+    sub: "7"
+  });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -240,11 +263,39 @@ export default function MusicLabPage() {
       soundDna: (feature.sound_dna ?? derived.sound_dna ?? []).join(", ")
     });
     setLabNote(readLabNote(feature.waveform_profile));
+    setEq(readEqProfile(feature.waveform_profile, {
+      air: String(Math.max(3, Math.round((feature.vocal_presence ?? derived.vocal_presence ?? 5) / 1.2))),
+      low: String(Math.max(3, Math.round((feature.groove ?? derived.groove ?? 6) / 1.15))),
+      mid: String(Math.max(3, Math.round((feature.density ?? derived.density ?? 5) / 1.1))),
+      presence: String(Math.max(3, Math.round((feature.intensity ?? derived.intensity ?? 6) / 1.15))),
+      sub: String(Math.max(3, Math.round((feature.energy ?? derived.energy ?? 7) / 1.1)))
+    }));
     setSelectedCueId("peak");
   }, [djProfile, selectedFeature, selectedWork]);
 
   if (!hasSupabaseConfig()) {
     return <MissingConfigNotice />;
+  }
+
+  if (!isLoading && profile && !hasRoleAccess(activeRoles, ["dj", "admin"])) {
+    return (
+      <WorkspacePageFrame
+        active="musicLab"
+        email={profile.email}
+        profileLabel={profile.email || "Listener workspace"}
+        readiness={38}
+        role={activeRoles}
+      >
+        <section className="p-room-3 md:p-room-5">
+          <EmptyState
+            title="Music Lab locked"
+            message="Music Lab opens after DJ verification. Complete the DJ unlock checklist before editing cue points, EQ sketches and track signal models."
+            href="/dashboard/settings?unlock=music-lab"
+            action="Open Role Verification"
+          />
+        </section>
+      </WorkspacePageFrame>
+    );
   }
 
   function updateCue(id: TrackMomentId, updates: Partial<LabCue>) {
@@ -321,6 +372,7 @@ export default function MusicLabPage() {
             soundDna: cue.soundDna,
             timestampLabel: formatTrackTime(clampTrackTimestamp(cue.seconds, selectedWork.duration_seconds))
           })),
+          eq_profile: normalizeEqProfile(eq),
           lab_note: labNote,
           lab_updated_at: new Date().toISOString()
         },
@@ -437,7 +489,7 @@ export default function MusicLabPage() {
                 <div className="grid gap-room-3 lg:grid-cols-[1fr_auto] lg:items-start">
                   <div>
                     <Text variant="uiLabel">Current source</Text>
-                    <Text as="h2" className="mt-room-1 text-3xl" variant="title">
+                    <Text as="h2" className="mt-room-1 text-2xl md:text-3xl" variant="title">
                       {selectedWork?.title || "Untitled track"}
                     </Text>
                     <Text className="mt-room-1" variant="mono">
@@ -459,11 +511,11 @@ export default function MusicLabPage() {
                   </div>
                 </div>
 
-                <div className="mt-room-4 border border-roomBorder bg-voidBlack p-room-3">
+                <div className="mt-room-4 overflow-hidden border border-roomBorder bg-voidBlack p-room-3">
                   <Room9Waveform
                     active
                     barCount={132}
-                    className="h-44 border-0 px-0"
+                    className="h-48 border-0 px-0"
                     markerLabel={selectedCue ? `${formatTrackTime(selectedCue.seconds)} ${selectedCue.label.replace(" Moment", "")}` : undefined}
                     peaks={selectedWork?.waveform_peaks}
                     reactive
@@ -476,7 +528,7 @@ export default function MusicLabPage() {
                   {cues.map((cue) => (
                     <button
                       className={cx(
-                        "border p-room-2 text-left transition",
+                        "min-h-[112px] min-w-0 border p-room-2 text-left transition",
                         cue.id === selectedCueId
                           ? "border-acidGreen bg-acidGreen text-black"
                           : "border-roomBorder bg-black text-paperWhite hover:border-paperWhite"
@@ -486,7 +538,12 @@ export default function MusicLabPage() {
                       type="button"
                     >
                       <span className="font-mono text-[10px] uppercase">{formatTrackTime(cue.seconds)}</span>
-                      <span className="mt-room-2 block font-display text-lg uppercase leading-none">{cue.label}</span>
+                      <span className="mt-room-2 block font-display text-[clamp(1rem,1.35vw,1.35rem)] uppercase leading-[0.95]">
+                        {getCompactCueTitle(cue)}
+                      </span>
+                      <span className={cx("mt-room-2 block font-mono text-[9px] uppercase", cue.id === selectedCueId ? "text-black/70" : "text-mutedText")}>
+                        {cue.label}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -571,6 +628,43 @@ export default function MusicLabPage() {
               </Panel>
 
               <Panel className="p-room-3">
+                <SectionHeader eyebrow="Audio workbench" title="EQ Sketch" />
+                <Text className="mt-room-2" variant="small">
+                  Draft the tonal shape of this track for recommendations and atmosphere briefs. This is not mastering; it is a DJ-facing signal model.
+                </Text>
+                <div className="mt-room-3 grid grid-cols-5 items-end gap-room-2 border border-roomBorder bg-black p-room-2">
+                  {eqFields.map((field) => {
+                    const level = parseMetric(eq[field.key]) ?? 0;
+                    return (
+                      <div className="min-w-0" key={field.key}>
+                        <div className="flex h-24 items-end border border-roomBorder bg-voidBlack px-1">
+                          <div className="w-full bg-acidGreen" style={{ height: `${Math.max(8, Math.min(100, level * 10))}%` }} />
+                        </div>
+                        <p className="mt-2 truncate font-mono text-[9px] uppercase text-paperWhite">{field.label}</p>
+                        <p className="truncate font-mono text-[8px] uppercase text-mutedText">{field.range}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-room-3 grid gap-room-2">
+                  {eqFields.map((field) => (
+                    <label key={field.key}>
+                      <span className="room-label">{field.label} / 10</span>
+                      <input
+                        className="w-full accent-acidGreen"
+                        max={10}
+                        min={0}
+                        step="0.5"
+                        type="range"
+                        value={eq[field.key]}
+                        onChange={(event) => setEq((current) => ({ ...current, [field.key]: event.target.value }))}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </Panel>
+
+              <Panel className="p-room-3">
                 <SectionHeader eyebrow="Output" title="Where This Feeds" />
                 <div className="mt-room-3 space-y-room-2">
                   {[
@@ -611,6 +705,26 @@ function splitList(value: string) {
     .filter(Boolean);
 }
 
+function getCompactCueTitle(cue: Pick<LabCue, "id" | "label">) {
+  if (cue.id === "peak") {
+    return "Peak";
+  }
+
+  if (cue.id === "intro") {
+    return "Intro";
+  }
+
+  if (cue.id === "build") {
+    return "Build";
+  }
+
+  if (cue.id === "closing") {
+    return "Closing";
+  }
+
+  return cue.label.replace(/\s+moment$/i, "");
+}
+
 function readLabNote(profile: unknown) {
   if (!profile || typeof profile !== "object") {
     return "";
@@ -618,4 +732,39 @@ function readLabNote(profile: unknown) {
 
   const note = (profile as { lab_note?: unknown }).lab_note;
   return typeof note === "string" ? note : "";
+}
+
+function readEqProfile(profile: unknown, fallback: LabEq): LabEq {
+  if (!profile || typeof profile !== "object") {
+    return fallback;
+  }
+
+  const raw = (profile as { eq_profile?: unknown }).eq_profile;
+  if (!raw || typeof raw !== "object") {
+    return fallback;
+  }
+
+  const eqRecord = raw as Partial<Record<keyof LabEq, unknown>>;
+  return {
+    air: readEqValue(eqRecord.air, fallback.air),
+    low: readEqValue(eqRecord.low, fallback.low),
+    mid: readEqValue(eqRecord.mid, fallback.mid),
+    presence: readEqValue(eqRecord.presence, fallback.presence),
+    sub: readEqValue(eqRecord.sub, fallback.sub)
+  };
+}
+
+function normalizeEqProfile(eq: LabEq) {
+  return {
+    air: parseMetric(eq.air) ?? 5,
+    low: parseMetric(eq.low) ?? 5,
+    mid: parseMetric(eq.mid) ?? 5,
+    presence: parseMetric(eq.presence) ?? 5,
+    sub: parseMetric(eq.sub) ?? 5
+  };
+}
+
+function readEqValue(value: unknown, fallback: string) {
+  const parsed = parseMetric(typeof value === "number" || typeof value === "string" ? value : fallback);
+  return String(parsed ?? fallback);
 }
