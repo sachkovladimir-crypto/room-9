@@ -13,7 +13,7 @@ import { BookmarkGlyph, ExternalGlyph, PauseGlyph, PlayGlyph } from "@/component
 import { Button, ButtonLink, Input, Panel, Select, cx } from "@/components/room9-ui";
 import { demoDjProfiles, demoWorks, getDemoDjLookup } from "@/lib/demoContent";
 import { formatPrice } from "@/lib/format";
-import { cssImageUrl, getDjAvatarUrl, getWorkCoverUrl } from "@/lib/media";
+import { cssImageUrl, getDjAvatarUrl, getReleaseCoverUrl, getWorkCoverUrl } from "@/lib/media";
 import { rosterArtists } from "@/lib/room9Design";
 import {
   readVaultSavedTrackIds,
@@ -32,7 +32,7 @@ import {
   logSupabaseError
 } from "@/lib/supabase";
 import { formatTrackTime, getMomentDisplayLabel, getPrimaryTrackMoment } from "@/lib/trackMoments";
-import type { DjProfile, TrackAudioFeature, UserSoundProfile, Work } from "@/lib/types";
+import type { DjProfile, Release, TrackAudioFeature, UserSoundProfile, Work } from "@/lib/types";
 import { blendUserSoundProfileWithIntent, getUserSoundProfileHeadline } from "@/lib/userSoundProfile";
 import { readUserSoundProfile } from "@/lib/userSoundProfileStore";
 
@@ -75,6 +75,8 @@ type SoundQueueItem = {
   signal: TrackSignalScore;
 };
 
+type ExploreSearchMode = "sounds" | "artists" | "releases";
+
 export default function ExplorePage() {
   return (
     <Suspense fallback={<main className="room-page min-h-screen" />}>
@@ -89,6 +91,10 @@ function ExplorePageContent() {
   const [soundWorks, setSoundWorks] = useState<Work[]>(demoWorks);
   const [soundDjLookup, setSoundDjLookup] = useState<Record<string, DjProfile>>(getDemoDjLookup());
   const [featureLookup, setFeatureLookup] = useState<Record<string, TrackAudioFeature>>({});
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [releaseDjLookup, setReleaseDjLookup] = useState<Record<string, DjProfile>>({});
+  const [releaseTrackCounts, setReleaseTrackCounts] = useState<Record<string, number>>({});
+  const [searchMode, setSearchMode] = useState<ExploreSearchMode>("sounds");
   const [query, setQuery] = useState("");
   const [genreFilter, setGenreFilter] = useState("All");
   const [locationFilter, setLocationFilter] = useState("All");
@@ -110,6 +116,7 @@ function ExplorePageContent() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
   const [soundError, setSoundError] = useState("");
+  const [releaseError, setReleaseError] = useState("");
   const [savedSearchNotice, setSavedSearchNotice] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const { currentTrack, isPlaying, playQueue, setSelectedTimestamp, togglePlayback } = useAudioPlayer();
@@ -248,10 +255,93 @@ function ExplorePageContent() {
     }
   }, [soundWorks.length]);
 
+  const loadReleaseSearch = useCallback(async () => {
+    if (!hasSupabaseConfig()) {
+      return;
+    }
+
+    setReleaseError("");
+
+    try {
+      const supabase = getSupabase();
+      const { data: releaseData, error: releasesError } = await supabase
+        .from("releases")
+        .select("*")
+        .eq("visibility", "public")
+        .order("created_at", { ascending: false })
+        .limit(48);
+
+      if (releasesError) {
+        logSupabaseError("Explore releases load failed", releasesError);
+        setReleases([]);
+        setReleaseDjLookup({});
+        setReleaseTrackCounts({});
+        setReleaseError(formatSupabaseError(releasesError, "Could not load albums and EPs."));
+        return;
+      }
+
+      const loadedReleases = (releaseData as Release[] | null) ?? [];
+      setReleases(loadedReleases);
+
+      const releaseIds = loadedReleases.map((release) => release.id);
+      const djIds = Array.from(new Set(loadedReleases.map((release) => release.dj_id).filter(Boolean)));
+
+      if (djIds.length > 0) {
+        const { data: releaseDjData, error: releaseDjError } = await supabase
+          .from("dj_profiles")
+          .select(DJ_PROFILE_COLUMNS)
+          .in("id", djIds);
+
+        if (releaseDjError) {
+          logSupabaseError("Explore release artist lookup failed", releaseDjError);
+          setReleaseDjLookup({});
+        } else {
+          setReleaseDjLookup(
+            ((releaseDjData as DjProfile[]) ?? []).reduce<Record<string, DjProfile>>((acc, dj) => {
+              acc[dj.id] = dj;
+              return acc;
+            }, {})
+          );
+        }
+      } else {
+        setReleaseDjLookup({});
+      }
+
+      if (releaseIds.length > 0) {
+        const { data: releaseTrackData, error: releaseTrackError } = await supabase
+          .from("release_tracks")
+          .select("release_id")
+          .in("release_id", releaseIds)
+          .limit(240);
+
+        if (releaseTrackError) {
+          logSupabaseError("Explore release track counts failed", releaseTrackError);
+          setReleaseTrackCounts({});
+        } else {
+          setReleaseTrackCounts(
+            ((releaseTrackData as Array<{ release_id: string }> | null) ?? []).reduce<Record<string, number>>((acc, row) => {
+              acc[row.release_id] = (acc[row.release_id] ?? 0) + 1;
+              return acc;
+            }, {})
+          );
+        }
+      } else {
+        setReleaseTrackCounts({});
+      }
+    } catch (caughtError) {
+      logSupabaseError("Explore releases unexpected failure", caughtError);
+      setReleaseError(formatSupabaseError(caughtError, "Could not load albums and EPs."));
+      setReleases([]);
+      setReleaseDjLookup({});
+      setReleaseTrackCounts({});
+    }
+  }, []);
+
   useEffect(() => {
     loadDjs();
     loadSoundQueue();
-  }, [loadDjs, loadSoundQueue]);
+    loadReleaseSearch();
+  }, [loadDjs, loadReleaseSearch, loadSoundQueue]);
 
   useEffect(() => {
     async function loadSavedTrackScope() {
@@ -399,6 +489,58 @@ function ExplorePageContent() {
     soundDjLookup,
     soundWorks,
     signalIntent,
+    verifiedOnly
+  ]);
+
+  const releaseResults = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+
+    return releases.filter((release) => {
+      const artist = releaseDjLookup[release.dj_id] ?? null;
+      const searchable = [
+        release.title,
+        release.release_type,
+        release.description,
+        artist?.stage_name,
+        artist?.bio,
+        artist?.genres,
+        artist?.city,
+        artist?.country,
+        artist?.bpm_range,
+        artist?.price?.toString(),
+        artist?.soundcloud_url,
+        artist?.mixcloud_url
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        (!normalized || searchable.includes(normalized)) &&
+        (genreFilter === "All" || (artist?.genres ?? "").toLowerCase().includes(genreFilter.toLowerCase())) &&
+        (locationFilter === "All" ||
+          [artist?.city, artist?.country].filter(Boolean).join(", ").toLowerCase().includes(locationFilter.toLowerCase())) &&
+        (bpmFilter === "All" || (artist?.bpm_range ?? "").toLowerCase().includes(bpmFilter.toLowerCase())) &&
+        feeMatches(artist?.price ?? null, feeFilter) &&
+        (availabilityFilter === "All" ||
+          (availabilityFilter === "Available" ? Boolean(artist?.is_available) : !artist?.is_available)) &&
+        (!liveReadyOnly || Boolean(artist?.is_available)) &&
+        (!verifiedOnly || Boolean(artist && isVerifiedDj(artist))) &&
+        (roomTypeFilters.length === 0 ||
+          roomTypeFilters.some((roomType) => releaseMatchesRoomType(release, artist, roomType)))
+      );
+    });
+  }, [
+    availabilityFilter,
+    bpmFilter,
+    feeFilter,
+    genreFilter,
+    liveReadyOnly,
+    locationFilter,
+    query,
+    releaseDjLookup,
+    releases,
+    roomTypeFilters,
     verifiedOnly
   ]);
 
@@ -589,6 +731,7 @@ function ExplorePageContent() {
 
   function saveSearch() {
     const search = {
+      mode: searchMode,
       query,
       genre: genreFilter,
       location: locationFilter,
@@ -637,12 +780,20 @@ function ExplorePageContent() {
         <Panel className="mx-auto max-w-[1680px] p-3">
           <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_2fr] xl:items-start">
             <label>
-              <span className="room-label">Search</span>
+              <span className="room-label">
+                {searchMode === "sounds" ? "Search sounds" : searchMode === "artists" ? "Search artists" : "Search albums / EPs"}
+              </span>
               <Input
                 aria-label="Search tracks, DJs, city, genre, BPM"
                 className="min-h-10 py-2 text-sm"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search tracks, DJs, city, genre, BPM..."
+                placeholder={
+                  searchMode === "sounds"
+                    ? "Search tracks, DJs, city, genre, BPM..."
+                    : searchMode === "artists"
+                      ? "Search artist name, city, genre, BPM..."
+                      : "Search albums, EPs, releases, artists..."
+                }
                 value={query}
               />
             </label>
@@ -677,6 +828,28 @@ function ExplorePageContent() {
                 </Button>
               </label>
             </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-roomBorder pt-3">
+            <span className="room-label mr-2">Search layer</span>
+            <SearchModeButton
+              active={searchMode === "sounds"}
+              count={soundQueue.length}
+              label="Sounds"
+              onClick={() => setSearchMode("sounds")}
+            />
+            <SearchModeButton
+              active={searchMode === "artists"}
+              count={filteredDjs.length}
+              label="Artists"
+              onClick={() => setSearchMode("artists")}
+            />
+            <SearchModeButton
+              active={searchMode === "releases"}
+              count={releaseResults.length}
+              label="Albums / EPs"
+              onClick={() => setSearchMode("releases")}
+            />
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-roomBorder pt-3">
@@ -822,12 +995,32 @@ function ExplorePageContent() {
         <div className="mx-auto max-w-[1680px]">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="room-tiny text-mutedText">Live Discovery Queue</p>
-              <h2 className="room-heading mt-2 text-[30px] leading-none">Discovery Feed</h2>
+              <p className="room-tiny text-mutedText">
+                {searchMode === "sounds"
+                  ? "Live Discovery Queue"
+                  : searchMode === "artists"
+                    ? "Artist Index"
+                    : "Release Index"}
+              </p>
+              <h2 className="room-heading mt-2 text-[30px] leading-none">
+                {searchMode === "sounds"
+                  ? "Discovery Feed"
+                  : searchMode === "artists"
+                    ? "Author Search"
+                    : "Album / EP Search"}
+              </h2>
             </div>
-            <span className="room-tiny text-acidGreen">{soundQueue.length} results found</span>
+            <span className="room-tiny text-acidGreen">
+              {searchMode === "sounds"
+                ? soundQueue.length
+                : searchMode === "artists"
+                  ? filteredDjs.length
+                  : releaseResults.length}{" "}
+              results found
+            </span>
           </div>
 
+          {searchMode === "sounds" ? (
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="min-w-0">
               <div className="flex flex-wrap items-end justify-between gap-3">
@@ -1105,6 +1298,22 @@ function ExplorePageContent() {
               </div>
             </aside>
           </div>
+          ) : searchMode === "artists" ? (
+            <ArtistSearchResults
+              artists={filteredDjs}
+              error={error}
+              isLoading={isLoading}
+              onOpenFilters={() => setAdvancedFiltersOpen(true)}
+            />
+          ) : (
+            <ReleaseSearchResults
+              artists={releaseDjLookup}
+              error={releaseError}
+              releases={releaseResults}
+              trackCounts={releaseTrackCounts}
+              onOpenFilters={() => setAdvancedFiltersOpen(true)}
+            />
+          )}
         </div>
       </section>
 
@@ -1123,6 +1332,220 @@ function ExplorePageContent() {
         </section>
       ) : null}
     </main>
+  );
+}
+
+function SearchModeButton({
+  active,
+  count,
+  label,
+  onClick
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      active={active}
+      className="justify-between gap-3"
+      onClick={onClick}
+      size="sm"
+      type="button"
+      variant={active ? "primary" : "ghost"}
+    >
+      <span>{label}</span>
+      <span className={cx("font-mono text-[10px]", active ? "text-black" : "text-mutedText")}>
+        {count.toString().padStart(2, "0")}
+      </span>
+    </Button>
+  );
+}
+
+function ArtistSearchResults({
+  artists,
+  error,
+  isLoading,
+  onOpenFilters
+}: {
+  artists: DjProfile[];
+  error: string;
+  isLoading: boolean;
+  onOpenFilters: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {[0, 1, 2, 3, 4, 5].map((item) => (
+          <div className="h-[220px] animate-pulse border border-roomBorder bg-panelBlack" key={item} />
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return <EmptyState title="Artist search unavailable" message={error} />;
+  }
+
+  if (artists.length === 0) {
+    return (
+      <div className="mt-5 grid gap-3">
+        <EmptyState
+          title="No artists found"
+          message="Try another city, genre, BPM band, or reset sound filters."
+        />
+        <Button className="mx-auto" onClick={onOpenFilters} size="sm" type="button" variant="secondary">
+          Open Filters
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {artists.map((artist) => {
+        const cover = artist.cover_image_url || artist.avatar_url;
+        return (
+          <article className="min-w-0 border border-roomBorder bg-black" key={artist.id}>
+            <div
+              className="h-44 border-b border-roomBorder bg-inkPanel bg-cover bg-center grayscale"
+              style={{ backgroundImage: cssImageUrl(cover || getDjAvatarUrl(artist)) }}
+            />
+            <div className="p-4">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="room-tiny text-mutedText">Artist / Dossier</p>
+                  <h3 className="mt-2 truncate font-display text-2xl uppercase text-paperWhite">
+                    {artist.stage_name || "Unnamed DJ"}
+                  </h3>
+                </div>
+                <span className={cx("shrink-0 border px-2 py-1 font-mono text-[10px] uppercase", artist.is_available ? "border-acidGreen text-acidGreen" : "border-roomBorder text-mutedText")}>
+                  {artist.is_available ? "Available" : "Offline"}
+                </span>
+              </div>
+              <p className="mt-3 min-w-0 truncate font-mono text-[10px] uppercase text-mutedText">
+                {[artist.city, artist.country].filter(Boolean).join(", ") || "Location TBA"} / {artist.genres || "Genre TBA"} / {artist.bpm_range || "BPM TBA"}
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <ButtonLink href={`/dj/${artist.id}`} size="sm" variant="primary">
+                  Open Artist
+                </ButtonLink>
+                <ButtonLink href={`/booking/${artist.id}`} size="sm" variant="secondary">
+                  Book DJ
+                </ButtonLink>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase text-mutedText">
+                <span className="border border-roomBorder px-2 py-1">{formatPrice(artist.price)}</span>
+                {isVerifiedDj(artist) ? <span className="border border-acidGreen px-2 py-1 text-acidGreen">Verified</span> : null}
+                {artist.soundcloud_url ? <span className="border border-roomBorder px-2 py-1">SoundCloud</span> : null}
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function ReleaseSearchResults({
+  artists,
+  error,
+  releases,
+  trackCounts,
+  onOpenFilters
+}: {
+  artists: Record<string, DjProfile>;
+  error: string;
+  releases: Release[];
+  trackCounts: Record<string, number>;
+  onOpenFilters: () => void;
+}) {
+  if (error) {
+    return (
+      <div className="mt-5">
+        <EmptyState title="Album search unavailable" message={error} />
+      </div>
+    );
+  }
+
+  if (releases.length === 0) {
+    return (
+      <div className="mt-5 grid gap-3">
+        <EmptyState
+          title="No albums or EPs found"
+          message="Try another artist, city, genre, or reset the current filters."
+        />
+        <Button className="mx-auto" onClick={onOpenFilters} size="sm" type="button" variant="secondary">
+          Open Filters
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      {releases.map((release) => {
+        const artist = artists[release.dj_id] ?? null;
+        const trackCount = trackCounts[release.id] ?? 0;
+        return (
+          <article
+            className="grid min-w-0 gap-0 border border-roomBorder bg-black md:grid-cols-[180px_minmax(0,1fr)]"
+            key={release.id}
+          >
+            <Link
+              aria-label={`Open ${release.title}`}
+              className="block min-h-[180px] border-b border-roomBorder bg-inkPanel bg-cover bg-center grayscale md:border-b-0 md:border-r"
+              href={`/release/${release.id}`}
+              style={{ backgroundImage: cssImageUrl(getReleaseCoverUrl(release, artist)) }}
+            />
+            <div className="min-w-0 p-4">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="room-tiny text-acidGreen">{formatReleaseType(release.release_type)}</p>
+                  <Link
+                    className="mt-2 block truncate font-display text-2xl uppercase text-paperWhite hover:text-acidGreen"
+                    href={`/release/${release.id}`}
+                  >
+                    {release.title}
+                  </Link>
+                  <p className="mt-2 min-w-0 truncate font-mono text-[10px] uppercase text-mutedText">
+                    {artist?.stage_name || "ROOM_9 Artist"} / {artist?.genres || "Sound archive"}
+                  </p>
+                </div>
+                <span className="shrink-0 border border-roomBorder px-2 py-1 font-mono text-[10px] uppercase text-mutedText">
+                  {trackCount || "--"} tracks
+                </span>
+              </div>
+
+              {release.description ? (
+                <p className="mt-4 max-w-2xl overflow-hidden break-words text-sm leading-6 text-ash [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+                  {release.description}
+                </p>
+              ) : (
+                <p className="mt-4 text-sm leading-6 text-mutedText">
+                  A public release object. Open it to play the tracklist or use a track moment as an atmosphere brief.
+                </p>
+              )}
+
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <ButtonLink href={`/release/${release.id}`} size="sm" variant="primary">
+                  Open Release
+                </ButtonLink>
+                {artist ? (
+                  <ButtonLink href={`/dj/${artist.id}`} size="sm" variant="secondary">
+                    Open Artist
+                  </ButtonLink>
+                ) : null}
+                <span className="room-tiny text-mutedText">
+                  {new Date(release.created_at).getFullYear()} / {release.visibility}
+                </span>
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1316,6 +1739,40 @@ function soundMatchesRoomType(work: Work, dj: DjProfile | null, roomType: string
   }
 
   return true;
+}
+
+function releaseMatchesRoomType(release: Release, dj: DjProfile | null, roomType: string) {
+  const text = [release.title, release.description, release.release_type, dj?.genres, dj?.profile_theme, dj?.city, dj?.country]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const normalizedRoom = roomType.toLowerCase();
+
+  if (normalizedRoom.includes("warehouse")) {
+    return /industrial|hard|warehouse|rave|techno|peak|set/.test(text);
+  }
+
+  if (normalizedRoom.includes("basement")) {
+    return /hypnotic|deep|basement|acid|groove|techno|ep/.test(text);
+  }
+
+  if (normalizedRoom.includes("open")) {
+    return /open|air|house|melodic|festival|live|album/.test(text);
+  }
+
+  return true;
+}
+
+function formatReleaseType(value: string | null) {
+  if (!value) {
+    return "Release";
+  }
+
+  if (value === "ep") {
+    return "EP";
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function hasActiveFilters(

@@ -1,4 +1,4 @@
-import type { DjProfile, Work } from "@/lib/types";
+import type { DjProfile, Release, Work } from "@/lib/types";
 
 export const ROOM9_TRACK_PLACEHOLDER = "/room9-track-placeholder.svg";
 export const ROOM9_DOSSIER_PLACEHOLDER = "/reference/dossier-hero.png";
@@ -16,6 +16,13 @@ export function getWorkCoverUrl(
   dj?: Pick<DjProfile, "avatar_url" | "cover_image_url"> | null
 ) {
   return work?.cover_image || getDjAvatarUrl(dj);
+}
+
+export function getReleaseCoverUrl(
+  release?: Pick<Release, "cover_image"> | null,
+  dj?: Pick<DjProfile, "avatar_url" | "cover_image_url"> | null
+) {
+  return release?.cover_image || getDjCoverUrl(dj);
 }
 
 export function cssImageUrl(url?: string | null) {
