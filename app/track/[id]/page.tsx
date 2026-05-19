@@ -7,6 +7,7 @@ import { BackButton } from "@/components/BackButton";
 import { EmptyState } from "@/components/EmptyState";
 import { useAudioPlayer } from "@/components/GlobalAudioPlayer";
 import { MissingConfigNotice } from "@/components/AuthNotice";
+import { SignalInsightCard } from "@/components/SignalInsightCard";
 import { TrackActionMenu } from "@/components/TrackActionMenu";
 import { BookmarkGlyph, ExternalGlyph, PlayGlyph } from "@/components/room9-icons";
 import {
@@ -49,7 +50,7 @@ import {
   getTrackMoments,
   type TrackMoment
 } from "@/lib/trackMoments";
-import { formatSignalScore, scoreTrackSignal } from "@/lib/signalEngine";
+import { scoreTrackSignal } from "@/lib/signalEngine";
 import type { DjProfile, TrackAudioFeature, Work } from "@/lib/types";
 import { createFallbackWaveform, extractWaveformPeaks } from "@/lib/waveform";
 
@@ -719,28 +720,22 @@ export default function TrackPage() {
           </Panel>
 
           {trackSignal ? (
-            <Panel className="p-6">
-              <SectionHeader eyebrow="Signal Engine" title={`${formatSignalScore(trackSignal.soundMatch)} sound match`} />
-              <div className="mt-5 grid grid-cols-3 gap-px bg-roomBorder">
-                <TrustCell label="Booking fit" value={formatSignalScore(trackSignal.bookingFit)} />
-                <TrustCell label="Energy" value={String(trackSignal.energy)} />
-                <TrustCell label="Confidence" value={formatSignalScore(trackSignal.featureConfidence)} />
-              </div>
-              <div className="mt-5 space-y-2">
-                {trackSignal.reasons.slice(0, 3).map((reason, index) => (
-                  <p className="border border-roomBorder bg-black p-3 text-xs leading-5 text-mutedText" key={`track-signal-reason-${index}`}>
-                    {reason}
-                  </p>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {[...trackSignal.tags, ...trackSignal.soundDna, ...trackSignal.roomFit].slice(0, 7).map((tag, index) => (
-                  <span className="border border-roomBorder px-2 py-1 font-mono text-[10px] uppercase text-ash" key={`track-signal-tag-${tag}-${index}`}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </Panel>
+            <SignalInsightCard
+              label="Signal Engine / track intelligence"
+              signal={trackSignal}
+              subtitle="Deterministic score from genre, BPM, energy, room fit, archive behavior and artist booking trust."
+              title="Why this sound fits"
+              action={
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <ButtonLink href="/library" size="sm" variant="secondary">
+                    Open Sound Vault
+                  </ButtonLink>
+                  <ButtonLink href={bookingHref} size="sm" variant="primary">
+                    Use as Brief
+                  </ButtonLink>
+                </div>
+              }
+            />
           ) : null}
 
           <Panel className="p-6">

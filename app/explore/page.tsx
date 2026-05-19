@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAudioPlayer } from "@/components/GlobalAudioPlayer";
 import { MissingConfigNotice } from "@/components/AuthNotice";
 import { Room9Waveform } from "@/components/Room9Waveform";
+import { SignalInsightCard } from "@/components/SignalInsightCard";
 import { TrackActionMenu } from "@/components/TrackActionMenu";
 import { BookmarkGlyph, ExternalGlyph, PauseGlyph, PlayGlyph } from "@/components/room9-icons";
 import { Button, ButtonLink, Input, Panel, Select, cx } from "@/components/room9-ui";
@@ -1037,7 +1038,28 @@ function ExplorePageContent() {
             )}
             </div>
 
-            <aside className="border border-roomBorder bg-black p-5 xl:sticky xl:top-24 xl:self-start">
+            <aside className="space-y-5 border border-roomBorder bg-black p-5 xl:sticky xl:top-24 xl:self-start">
+              {soundQueue[0] ? (
+                <SignalInsightCard
+                  compact
+                  label={soundProfile ? "Personal Signal" : "Signal Engine"}
+                  signal={soundQueue[0].signal}
+                  subtitle={`${soundQueue[0].dj?.stage_name || "ROOM_9 Artist"} / ${soundQueue[0].work.genre || soundQueue[0].dj?.genres || "unknown zone"}`}
+                  title={soundQueue[0].work.title || "Top sound match"}
+                  action={
+                    <div className="grid gap-2">
+                      <ButtonLink href={`/track/${soundQueue[0].work.id}`} size="sm" variant="primary">
+                        Open Best Match
+                      </ButtonLink>
+                      {soundQueue[0].dj ? (
+                        <ButtonLink href={`/dj/${soundQueue[0].dj.id}`} size="sm" variant="secondary">
+                          Open Dossier
+                        </ButtonLink>
+                      ) : null}
+                    </div>
+                  }
+                />
+              ) : null}
               <div className="flex items-center justify-between border-b border-roomBorder pb-4">
                 <p className="font-mono text-xs font-black uppercase tracking-[0.28em] text-paperWhite">
                   Related Artists
