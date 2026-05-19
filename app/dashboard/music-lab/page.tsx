@@ -496,7 +496,7 @@ export default function MusicLabPage() {
             action="Upload Track"
           />
         ) : (
-          <div className="grid gap-room-4 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
+          <div className="grid gap-room-4 2xl:grid-cols-[280px_minmax(0,1fr)_340px]">
             <Panel className="p-room-3">
               <SectionHeader eyebrow="Source tracks" title="Lab Queue" />
               <div className="mt-room-3 space-y-room-1">
@@ -513,7 +513,7 @@ export default function MusicLabPage() {
                       onClick={() => setSelectedWorkId(work.id)}
                       type="button"
                     >
-                      <Text as="span" className="block truncate text-sm" variant="title">
+                      <Text as="span" className="room-one-line block text-sm" variant="title">
                         {work.title || "Untitled track"}
                       </Text>
                       <span className="mt-1 block font-mono text-[9px] uppercase text-mutedText">
@@ -533,7 +533,7 @@ export default function MusicLabPage() {
                 <div className="grid gap-room-3 lg:grid-cols-[1fr_auto] lg:items-start">
                   <div>
                     <Text variant="uiLabel">Current source</Text>
-                    <Text as="h2" className="mt-room-1 text-2xl md:text-3xl" variant="title">
+                    <Text as="h2" className="room-clamp-2 mt-room-1 max-w-3xl text-[clamp(1.5rem,3vw,2.75rem)] leading-[0.95]" variant="title">
                       {selectedWork?.title || "Untitled track"}
                     </Text>
                     <Text className="mt-room-1" variant="mono">
@@ -559,7 +559,7 @@ export default function MusicLabPage() {
                   <Room9Waveform
                     active
                     barCount={132}
-                    className="h-48 border-0 px-0"
+                    className="h-[220px] border-0 px-0"
                     markerLabel={selectedCue ? `${formatTrackTime(selectedCue.seconds)} ${selectedCue.label.replace(" Moment", "")}` : undefined}
                     peaks={selectedWork?.waveform_peaks}
                     reactive
@@ -568,11 +568,11 @@ export default function MusicLabPage() {
                   />
                 </div>
 
-                <div className="mt-room-3 grid gap-room-2 md:grid-cols-4">
+                <div className="mt-room-3 grid gap-room-2 sm:grid-cols-2 2xl:grid-cols-4">
                   {cues.map((cue) => (
                     <button
                       className={cx(
-                        "min-h-[112px] min-w-0 border p-room-2 text-left transition",
+                        "min-h-[120px] min-w-0 overflow-hidden border p-room-2 text-left transition",
                         cue.id === selectedCueId
                           ? "border-acidGreen bg-acidGreen text-black"
                           : "border-roomBorder bg-black text-paperWhite hover:border-paperWhite"
@@ -581,11 +581,11 @@ export default function MusicLabPage() {
                       onClick={() => setSelectedCueId(cue.id)}
                       type="button"
                     >
-                      <span className="font-mono text-[10px] uppercase">{formatTrackTime(cue.seconds)}</span>
-                      <span className="mt-room-2 block font-display text-[clamp(1rem,1.35vw,1.35rem)] uppercase leading-[0.95]">
+                      <span className="room-one-line block font-mono text-[10px] uppercase">{formatTrackTime(cue.seconds)}</span>
+                      <span className="room-one-line mt-room-2 block font-display text-[clamp(1rem,1.15vw,1.25rem)] uppercase leading-none">
                         {getCompactCueTitle(cue)}
                       </span>
-                      <span className={cx("mt-room-2 block font-mono text-[9px] uppercase", cue.id === selectedCueId ? "text-black/70" : "text-mutedText")}>
+                      <span className={cx("room-clamp-2 mt-room-2 block font-mono text-[9px] uppercase", cue.id === selectedCueId ? "text-black/70" : "text-mutedText")}>
                         {cue.label}
                       </span>
                     </button>

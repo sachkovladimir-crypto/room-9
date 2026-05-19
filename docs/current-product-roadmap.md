@@ -38,9 +38,12 @@ The next work should focus on reliability, IA clarity, product flow, and only th
 Status, May 19, 2026:
 
 - Pre-release branch currently contains deployment documentation plus the active polish package for Music Lab, password recovery, and recommendation visibility.
+- `main` is now the source of truth for the pre-release package. `work/pre-release-polish` is an older branch point; its content has already been carried into `main` through the active polish commits.
 - Music Lab now has a clearer locked-state boundary: listener accounts can no longer land on a confusing half-open lab surface.
 - The shared waveform component was changed to scale inside tall and compact containers, so Music Lab, Track Page, DJ Dossier and Player can use the same visual language without leaving large empty blocks.
 - Music Lab now includes a lightweight EQ Sketch panel. It is not a mastering tool; it stores a DJ-facing signal profile that can feed recommendations, room fit, and sound evidence.
+- Music Lab workbench layout was tightened after visual QA: source queue, waveform, cue cards and EQ panels now use safer grid widths, non-overflowing cue labels and adaptive marker placement.
+- Local blank-screen debugging found a corrupted `.next` dev cache rather than a product runtime bug. The cache was cleared and the app was restarted on `localhost:3001`.
 - Auth gained a proper password recovery path: `/forgot-password` sends a Supabase recovery email and `/update-password` lets the user set a stronger password from the recovery session.
 - Registration now uses one password quality model across the app: 8+ characters, one letter, one number.
 - Signal Engine is already implemented as a deterministic recommendation layer. It ranks tracks by genre, BPM, saved moments, playlists, room fit, energy, booking trust, and user archive behavior. The next step is to make these recommendations more visible and actionable across Sound Vault, Explore, Track Page and Event Desk.

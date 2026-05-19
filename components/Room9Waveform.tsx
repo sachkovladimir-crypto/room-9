@@ -40,8 +40,8 @@ export function Room9Waveform({
     >
       {markerLabel ? (
         <span
-          className="absolute bottom-full mb-1 -translate-x-1/2 whitespace-nowrap bg-acidGreen px-2 py-1 font-mono text-[9px] font-black uppercase text-black"
-          style={{ left: `${safeRatio * 100}%` }}
+          className="room-one-line absolute bottom-full mb-1 max-w-[14rem] -translate-x-1/2 whitespace-nowrap bg-acidGreen px-2 py-1 font-mono text-[9px] font-black uppercase text-black"
+          style={{ left: `min(max(3.5rem, ${safeRatio * 100}%), calc(100% - 3.5rem))` }}
         >
           {markerLabel}
         </span>
@@ -56,7 +56,7 @@ export function Room9Waveform({
           <span
             aria-hidden="true"
             className={cx(
-              "w-[2px] shrink-0 transition-colors duration-300",
+              "w-[2px] shrink-0 transition-[background-color,transform] duration-300 will-change-transform",
               selected ? "bg-acidGreen" : active && played ? "bg-acidGreen" : played ? "bg-paperWhite" : "bg-strongBorder"
             )}
             key={index}
