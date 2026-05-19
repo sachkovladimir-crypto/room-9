@@ -96,12 +96,12 @@ export async function trackUserInteractionAsync({
 
 async function getCurrentUserId() {
   try {
-    const { data, error } = await getSupabase().auth.getUser();
+    const { data, error } = await getSupabase().auth.getSession();
     if (error && !isMissingAuthSession(error)) {
       logSupabaseError("Signal interaction user lookup failed", error);
     }
 
-    return data.user?.id ?? null;
+    return data.session?.user?.id ?? null;
   } catch (error) {
     logSupabaseError("Signal interaction user lookup crashed", error);
     return null;

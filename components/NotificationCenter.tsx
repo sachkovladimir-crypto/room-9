@@ -77,7 +77,7 @@ export function NotificationCenter({ className }: { className?: string }) {
     async function loadNotifications() {
       try {
         const supabase = getSupabase();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const { data: sessionData, error: userError } = await supabase.auth.getSession();
         if (userError) {
           if (!isMissingAuthSession(userError)) {
             logSupabaseError("Notification center auth failed", userError);
@@ -85,15 +85,16 @@ export function NotificationCenter({ className }: { className?: string }) {
           return;
         }
 
-        if (!userData.user) {
+        const user = sessionData.session?.user;
+        if (!user) {
           return;
         }
-        setUserId(userData.user.id);
+        setUserId(user.id);
 
         const { data, error } = await supabase
           .from("notifications")
           .select("*")
-          .eq("user_id", userData.user.id)
+          .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(12);
 

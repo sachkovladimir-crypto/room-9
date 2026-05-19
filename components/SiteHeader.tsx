@@ -41,7 +41,7 @@ export function SiteHeader() {
     const supabase = getSupabase();
 
     supabase.auth
-      .getUser()
+      .getSession()
       .then(async ({ data, error }) => {
         if (error) {
           if (isMissingAuthSession(error)) {
@@ -50,13 +50,14 @@ export function SiteHeader() {
             return;
           }
 
-          logSupabaseError("Header auth user load failed", error);
+          logSupabaseError("Header session load failed", error);
           setProfile(null);
           setIsLoading(false);
           return;
         }
 
-        if (!data.user) {
+        const sessionUser = data.session?.user;
+        if (!sessionUser) {
           setProfile(null);
           setIsLoading(false);
           return;
@@ -65,23 +66,32 @@ export function SiteHeader() {
         const { data: profileRow, error: profileError } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", data.user.id)
+          .eq("id", sessionUser.id)
           .maybeSingle();
 
         if (profileError) {
           logSupabaseError("Header profile load failed", profileError);
         }
 
-        const loadedProfile = (profileRow as Profile | null) ?? null;
+        const loadedProfile =
+          (profileRow as Profile | null) ??
+          ({
+            id: sessionUser.id,
+            email: sessionUser.email ?? null,
+            role: "listener",
+            created_at: sessionUser.created_at ?? new Date().toISOString()
+          } satisfies Profile);
         setProfile(loadedProfile);
-        if (loadedProfile) {
-          try {
-            setActiveRoles(await loadRoleAccess(supabase, loadedProfile.id, loadedProfile.role));
-          } catch (roleError) {
-            logSupabaseError("Header role access load failed", roleError);
-            setActiveRoles(["listener"]);
-          }
-        } else {
+        if (profileError) {
+          setActiveRoles(["listener"]);
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          setActiveRoles(await loadRoleAccess(supabase, loadedProfile.id, loadedProfile.role));
+        } catch (roleError) {
+          logSupabaseError("Header role access load failed", roleError);
           setActiveRoles(["listener"]);
         }
         setIsLoading(false);

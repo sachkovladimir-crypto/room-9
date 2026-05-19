@@ -124,14 +124,14 @@ async function getUserId(scope?: string | null) {
   }
 
   try {
-    const { data, error } = await getSupabase().auth.getUser();
+    const { data, error } = await getSupabase().auth.getSession();
     if (error && !isMissingAuthSession(error)) {
-      logSupabaseError("Sound Vault auth lookup failed", error);
+      logSupabaseError("Sound Vault session lookup failed", error);
     }
 
-    return data.user?.id ?? null;
+    return data.session?.user?.id ?? null;
   } catch (error) {
-    logSupabaseError("Sound Vault auth lookup crashed", error);
+    logSupabaseError("Sound Vault session lookup crashed", error);
     return null;
   }
 }

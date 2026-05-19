@@ -67,12 +67,12 @@ export function TrackActionMenu({
       }
 
       try {
-        const { data, error } = await getSupabase().auth.getUser();
+        const { data, error } = await getSupabase().auth.getSession();
         if (error && !isMissingAuthSession(error)) {
           logSupabaseError("Track action scope load failed", error);
         }
 
-        const scope = data.user?.id ?? null;
+        const scope = data.session?.user?.id ?? null;
         const [ids, loadedPlaylists] = await Promise.all([readVaultSavedTrackIds(scope), readVaultPlaylists(scope)]);
         if (mounted) {
           setMusicScope(scope);

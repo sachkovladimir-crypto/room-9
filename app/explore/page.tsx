@@ -255,8 +255,8 @@ function ExplorePageContent() {
   useEffect(() => {
     async function loadSavedTrackScope() {
       try {
-        const { data } = await getSupabase().auth.getUser();
-        const scope = data.user?.id ?? null;
+        const { data } = await getSupabase().auth.getSession();
+        const scope = data.session?.user?.id ?? null;
         setMusicScope(scope);
         setSavedTrackIds(await readVaultSavedTrackIds(scope));
         setSoundProfile(await readUserSoundProfile(scope));
