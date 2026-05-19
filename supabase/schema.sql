@@ -670,8 +670,11 @@ create index if not exists idx_live_streams_starts_at on public.live_streams(sta
 create index if not exists idx_live_streams_owner_id on public.live_streams(owner_id);
 
 create index if not exists idx_profile_views_dj_id on public.profile_views(dj_id);
+create index if not exists idx_profile_views_viewer_id on public.profile_views(viewer_id);
 create index if not exists idx_track_plays_dj_id on public.track_plays(dj_id);
 create index if not exists idx_track_plays_work_id on public.track_plays(work_id);
+create index if not exists idx_track_plays_listener_id on public.track_plays(listener_id);
+create index if not exists idx_reviews_booking_id on public.reviews(booking_id);
 create index if not exists idx_reviews_reviewee_id on public.reviews(reviewee_id);
 create index if not exists idx_reviews_reviewer_id on public.reviews(reviewer_id);
 create index if not exists idx_favorites_user_id on public.favorites(user_id);
@@ -710,9 +713,12 @@ create index if not exists idx_event_lineup_slots_dj_id on public.event_lineup_s
 create index if not exists idx_event_lineup_slots_saved_moment_id on public.event_lineup_slots(saved_moment_id);
 create index if not exists idx_event_lineup_slots_booking_id on public.event_lineup_slots(booking_id);
 create index if not exists idx_payments_booking_id on public.payments(booking_id);
+create index if not exists idx_payments_payer_id on public.payments(payer_id);
+create index if not exists idx_payments_receiver_id on public.payments(receiver_id);
 create index if not exists idx_payments_status on public.payments(status);
 create index if not exists idx_event_tickets_event_id on public.event_tickets(event_id);
 create index if not exists idx_event_tickets_buyer_id on public.event_tickets(buyer_id);
+create index if not exists idx_admin_reports_reporter_id on public.admin_reports(reporter_id);
 create index if not exists idx_admin_reports_status on public.admin_reports(status);
 create index if not exists idx_stream_sessions_status on public.stream_sessions(status);
 create index if not exists idx_stream_sessions_dj_id on public.stream_sessions(dj_id);
@@ -953,6 +959,7 @@ drop policy if exists "demo_event_lineup_slots_manage_event_owner" on public.eve
 drop policy if exists "demo_event_lineup_slots_update_related_dj" on public.event_lineup_slots;
 drop policy if exists "demo_payments_select_related" on public.payments;
 drop policy if exists "demo_payments_insert_related" on public.payments;
+drop policy if exists "demo_payments_update_related" on public.payments;
 drop policy if exists "demo_event_tickets_select_own" on public.event_tickets;
 drop policy if exists "demo_event_tickets_insert_own" on public.event_tickets;
 drop policy if exists "demo_admin_reports_insert_authenticated" on public.admin_reports;
@@ -1885,11 +1892,11 @@ create policy "demo_payments_select_related"
   on public.payments for select
   to authenticated
   using (
-    auth.uid() = payer_id
-    or auth.uid() = receiver_id
+    (select auth.uid()) = payer_id
+    or (select auth.uid()) = receiver_id
     or exists (
       select 1 from public.profiles
-      where profiles.id = auth.uid()
+      where profiles.id = (select auth.uid())
       and profiles.role = 'admin'
     )
   );
@@ -1897,7 +1904,29 @@ create policy "demo_payments_select_related"
 create policy "demo_payments_insert_related"
   on public.payments for insert
   to authenticated
-  with check (auth.uid() = payer_id);
+  with check ((select auth.uid()) = payer_id);
+
+create policy "demo_payments_update_related"
+  on public.payments for update
+  to authenticated
+  using (
+    (select auth.uid()) = payer_id
+    or (select auth.uid()) = receiver_id
+    or exists (
+      select 1 from public.profiles
+      where profiles.id = (select auth.uid())
+      and profiles.role = 'admin'
+    )
+  )
+  with check (
+    (select auth.uid()) = payer_id
+    or (select auth.uid()) = receiver_id
+    or exists (
+      select 1 from public.profiles
+      where profiles.id = (select auth.uid())
+      and profiles.role = 'admin'
+    )
+  );
 
 create policy "demo_event_tickets_select_own"
   on public.event_tickets for select

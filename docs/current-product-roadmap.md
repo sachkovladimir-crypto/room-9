@@ -52,6 +52,7 @@ Status, May 19, 2026:
 - Track Page now has a dedicated Signal Engine panel with sound match, booking fit, feature confidence, reasons and signal tags.
 - Music Lab now includes an Analysis Summary output: recommendation bias, best event slot, EQ focus and brief readiness. This makes the DJ workbench read as a signal editing tool, not a confusing decoration.
 - Supabase/RLS scope was re-audited in `docs/supabase-rls-audit.md` for playlists, playlist tracks, saved moments, saved tracks, notifications, bookings, events, event slots and Music Lab feature rows.
+- Supabase Performance Advisor follow-up added the missing FK indexes for `admin_reports`, `payments`, `profile_views`, `reviews`, and `track_plays`, plus a matching `payments` update policy for the escrow preview layer.
 
 ## 2. Main Recommendation
 

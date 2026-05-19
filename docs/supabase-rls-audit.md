@@ -101,7 +101,9 @@ Performance advisor result:
 
 - Several policies trigger `auth_rls_initplan` warnings because some RLS checks call `auth.uid()` or helper logic directly inside policies. For scale, rewrite those expressions to use `(select auth.uid())` or equivalent cached helper checks.
 - Some tables have multiple permissive policies for the same role/action. This is understandable for demo readability, but production should merge overlapping policies where possible.
-- A few future/V3 tables have unindexed foreign keys (`admin_reports`, `payments`, `profile_views`, `reviews`, `track_plays`). Add covering indexes before those modules become active at product scale.
+- A few future/V3 tables had unindexed foreign keys (`admin_reports`, `payments`, `profile_views`, `reviews`, `track_plays`). Covering indexes were added to `supabase/schema.sql` and applied to the live Supabase project on May 19, 2026.
+- `payments` had update grants but no matching update policy. A related-user/admin update policy was added for the escrow preview layer and verified in the live project.
+- The follow-up advisor check no longer reports the missing FK-index warnings. Remaining performance warnings are policy-shape optimizations (`auth_rls_initplan`, multiple permissive policies) and unused-index info expected for a pre-release/demo dataset.
 - Many unused-index notices are expected because the project is still in demo/pre-release and has limited traffic. Do not remove indexes purely because of early unused warnings.
 
 ## User-Scoped Music Data
