@@ -153,6 +153,19 @@ The repository now includes a GitHub Actions workflow:
 .github/workflows/cloudflare-deploy.yml
 ```
 
+GitHub repository:
+
+```text
+https://github.com/sachkovladimir-crypto/room-9
+```
+
+Branch model:
+
+```text
+main                     production/deploy branch
+work/pre-release-polish  current implementation branch
+```
+
 Use this when you want Cloudflare deployment to come from Git instead of a local terminal.
 
 Required GitHub repository secrets:

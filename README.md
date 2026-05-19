@@ -93,7 +93,13 @@ The goal is a stable diploma demo: DJs create profiles and upload audio, organiz
 
 ## Git and Cloudflare Deployment
 
-The project is now prepared for Git-based deployment. Push `main` to GitHub and add these GitHub Actions secrets:
+The project is connected to GitHub:
+
+```text
+https://github.com/sachkovladimir-crypto/room-9
+```
+
+Use `main` as the deployment branch and use feature/work branches for new implementation passes. Add these GitHub Actions secrets before relying on automatic Cloudflare deployment:
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL
