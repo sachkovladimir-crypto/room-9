@@ -183,7 +183,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 isolate border-b border-roomBorder bg-voidBlack/95 backdrop-blur">
-      <div className="relative mx-auto grid min-h-12 w-full max-w-[1920px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-1.5 md:grid-cols-[96px_minmax(180px,340px)_1fr_auto] md:gap-3 md:px-5 xl:grid-cols-[112px_minmax(220px,420px)_minmax(320px,1fr)_auto]">
+      <div className="relative mx-auto grid min-h-12 w-full max-w-[1920px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-1.5 md:grid-cols-[96px_minmax(160px,280px)_1fr_auto] md:gap-3 md:px-5 xl:grid-cols-[112px_minmax(180px,320px)_minmax(360px,1fr)_auto]">
         <Link
           href="/"
           className="relative z-10 flex shrink-0 items-center gap-2 font-display text-base uppercase leading-none text-paperWhite md:text-lg"
@@ -192,22 +192,22 @@ export function SiteHeader() {
         </Link>
 
         <form
-          className="relative z-10 hidden min-h-9 min-w-0 items-center border-l border-r border-roomBorder bg-black md:flex"
+          className="relative z-10 hidden min-h-8 min-w-0 items-center border-l border-r border-roomBorder bg-black md:flex"
           onSubmit={handleGlobalSearch}
         >
           <input
             aria-label="Global search"
-            className="h-9 min-w-0 flex-1 bg-transparent px-3 font-mono text-[10px] uppercase text-bone outline-none placeholder:text-neutral-700"
+            className="h-8 min-w-0 flex-1 bg-transparent px-3 font-mono text-[10px] uppercase text-bone outline-none placeholder:text-neutral-700"
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search tracks, DJs, events, streams..."
             value={search}
           />
-          <button className="h-9 border-l border-roomBorder px-3 font-mono text-[10px] font-black uppercase text-mutedText hover:bg-acidGreen hover:text-black" type="submit">
+          <button className="h-8 border-l border-roomBorder px-2.5 font-mono text-[10px] font-black uppercase text-mutedText hover:bg-acidGreen hover:text-black" type="submit">
             Search
           </button>
         </form>
 
-        <nav className="relative z-20 hidden min-w-0 items-center justify-center gap-6 lg:flex xl:gap-8">
+        <nav className="relative z-20 hidden min-w-0 items-center justify-center gap-7 lg:flex xl:gap-9">
           {navLinks.map(([label, href]) => (
             <Link
               key={label}

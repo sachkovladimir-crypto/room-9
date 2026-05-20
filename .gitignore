@@ -16,3 +16,9 @@ tsconfig.tsbuildinfo
 .wrangler
 .dev.vars
 cloudflare-env.d.ts
+
+# ROOM_9 generated/local working artifacts
+deliverables/
+scripts/build_room9_bachelor_note_final.py
+scripts/generate_room9_explanatory_note.py
+app/**/page 2.tsx

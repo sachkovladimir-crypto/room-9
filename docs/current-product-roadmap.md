@@ -56,6 +56,13 @@ Status, May 19, 2026:
 - Cloudflare performance follow-up moved client-side auth reads from `auth.getUser()` to `auth.getSession()` across public/workspace surfaces and added explicit limits to heavy workspace queries. This keeps RLS intact while reducing extra network roundtrips and Worker CPU pressure.
 - Live browser QA on `localhost:3001` confirmed Explore playback pause/resume works from the global player, the queue panel shows upcoming tracks, Track Page renders dynamic moments, Sound Vault nested routes resolve directly, Music Lab is accessible only for DJ/Admin, and Booking CRM renders as a professional offer board under the DJ account.
 
+Status, May 20, 2026:
+
+- `main` remains cleanly aligned with `origin/main`; local generated diploma files and duplicate copied auth pages are now treated as local artifacts instead of product source.
+- Global player reliability pass started: playback failures now surface as compact player feedback, repeat-one failure no longer fails silently, queue removal can continue playback to the next item, and tracks without a source are blocked before they enter a broken play state.
+- Supabase-facing error text is being moved away from demo/diploma copy toward production-readable diagnostics.
+- Next implementation package should split Sound Vault internals into smaller components/hooks, replace URL-first cover fields with file-upload-first controls, and isolate fake music data behind explicit demo mode.
+
 ## 2. Main Recommendation
 
 Do not implement a heavy AI system first.
@@ -1247,7 +1254,183 @@ Status, May 18:
 - Calendar Timeline now explains the source of every operational object: direct booking, Event Desk request, Event Desk slot, atmosphere brief, rider deadline, escrow preview, event page, or stream schedule.
 - Cloudflare deployment path was documented in `docs/cloudflare-deployment.md`; `@opennextjs/cloudflare`, `wrangler`, `wrangler.jsonc`, and `open-next.config.ts` are now installed/configured, and `npm run cf:build` passes locally.
 
-## 11. Updated Priority Order
+## 11. V3/V4 Advanced Audio And Intelligence Roadmap
+
+This section captures the larger product direction that should come after the current pre-release stabilization work. These items are intentionally not part of the immediate diploma stability pass, because they require a more deliberate audio architecture.
+
+### V3: ROOM_9 Audio Engine
+
+Goal: replace the current "HTML audio with UI state" layer with a dedicated product audio engine.
+
+Planned capabilities:
+
+- Stable playback across desktop, iPhone, iPad and Android browsers.
+- Queue, play next, previous, repeat-one, volume, save moment and selected timestamp state.
+- A single source of truth for the current track, current cue, duration, waveform and queue.
+- `HTMLAudioElement` for reliable playback.
+- Web Audio API for analysis and visual feedback.
+- `AudioContext` and `AnalyserNode` for live waveform / spectrum visuals.
+- `OfflineAudioContext` for uploaded-file analysis.
+- Cached waveform peaks stored in Supabase so heavy analysis does not rerun on every page load.
+
+Definition of done:
+
+- Player, Track Page, Artist Dossier, Sound Vault and Music Lab all use the same audio state.
+- A track started from Explore can be paused/resumed from the player and continued through queue logic.
+- Waveform and timestamp markers behave consistently across all music surfaces.
+
+### V3: Music Lab As DJ Workbench
+
+Goal: turn Music Lab into a lightweight DJ analysis and preparation workspace, not a full DAW.
+
+Planned capabilities:
+
+- Waveform editor.
+- Cue points.
+- Intro / Build / Peak / Closing marker editor.
+- Loop preview for selected moments.
+- Energy curve.
+- BPM detection.
+- Key detection.
+- Loudness estimate.
+- Room type tag.
+- Sound DNA tags.
+- EQ sketch.
+- Track notes and booking context.
+- Best event slot suggestion.
+- Brief readiness score.
+
+Definition of done:
+
+- A DJ can upload a track and receive an editable technical/music profile.
+- Music Lab writes structured features into `track_audio_features`.
+- Track Page, Explore, Artist Dossier and Event Desk can reuse the same analysis result.
+
+### V3: Signal Engine 2.0
+
+Goal: make recommendations feel useful without pretending that a full AI system already exists.
+
+Recommendation inputs:
+
+- Liked tracks.
+- Saved tracks.
+- Saved moments / Atmosphere Briefs.
+- Playlist tracks.
+- Queue behavior.
+- Listening history.
+- Genre.
+- BPM.
+- Energy.
+- Room type.
+- Sound DNA.
+- Booking intent.
+- Event slot requirements.
+- DJ readiness.
+
+Recommendation outputs:
+
+- Recommended tracks.
+- Recommended DJs.
+- Recommended releases.
+- Booking-ready moments.
+- Similar sound profiles.
+- Event slot suggestions.
+
+Each recommendation must explain itself:
+
+> Recommended because you saved several high-energy industrial peak moments around 130-145 BPM and this artist has strong booking readiness.
+
+Definition of done:
+
+- Explore, Sound Vault, Track Page, Artist Dossier and Event Desk can show explainable recommendations.
+- The algorithm remains deterministic and inspectable for the diploma version.
+
+### V4: AI-Assisted Audio Classification
+
+Goal: add an AI/ML layer after enough product signals exist.
+
+Possible capabilities:
+
+- Automatic genre suggestion.
+- Automatic BPM and key refinement.
+- Automatic room-fit classification.
+- Embedding-based track similarity.
+- Auto-tagging for sound DNA.
+- Automatic peak moment detection.
+- "This track fits this event slot" explanations.
+
+Implementation direction:
+
+- Keep deterministic Signal Engine as the baseline.
+- Add AI as an assistive layer, not as a black box that replaces product logic.
+- Store model outputs with confidence scores and allow DJ correction.
+
+Definition of done:
+
+- AI output can be corrected by users.
+- Corrections improve future recommendations.
+- The product remains explainable.
+
+### V4: Live Streaming Infrastructure
+
+Goal: move from stream listings and archive UX to real streaming infrastructure.
+
+Production candidates:
+
+- Cloudflare Stream.
+- Mux.
+- LiveKit.
+
+Planned capabilities:
+
+- DJ ingest URL.
+- HLS playback.
+- Stream recording.
+- Stream archive.
+- Viewer count.
+- Stream chat.
+- Moderation.
+- Save moment from stream.
+- Convert stream archive into a Sound Vault object.
+
+Core product flow:
+
+**Live Stream -> Save Moment -> Atmosphere Brief -> Event Slot -> Booking Request.**
+
+### V4: Beat Marketplace
+
+Goal: add a commercial audio-asset layer that is separate from DJ booking.
+
+Product rule:
+
+- Sound Vault is the user's personal music and intent archive.
+- Beat Marketplace is the commercial layer for buying licenses to audio assets.
+- Users do not buy "the vibe"; they buy a license to use a beat, stem or production asset.
+
+Possible data objects:
+
+- `beats`
+- `beat_licenses`
+- `beat_purchases`
+- `stems`
+- `license_terms`
+
+Possible license types:
+
+- Preview only.
+- Basic license.
+- Exclusive license.
+- Stems included.
+- Commercial use.
+- Non-commercial use.
+
+Definition of done:
+
+- Purchased assets appear in Sound Vault under a separate purchased-assets area.
+- Licensing terms are visible before purchase.
+- Real payments remain a later secure provider integration.
+
+## 12. Updated Priority Order
 
 Recommended next implementation order:
 

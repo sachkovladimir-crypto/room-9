@@ -18,6 +18,7 @@ import {
   formatSupabaseError,
   getSupabase,
   hasSupabaseConfig,
+  isRoom9DemoMode,
   logSupabaseError
 } from "@/lib/supabase";
 import { clampTrackTimestamp, getMomentDisplayLabel, getPrimaryTrackMoment } from "@/lib/trackMoments";
@@ -126,7 +127,7 @@ export default function DjProfilePage() {
       setError("");
 
       try {
-        const demoDj = getDemoDjProfile(params.id);
+        const demoDj = isRoom9DemoMode() ? getDemoDjProfile(params.id) : null;
         if (demoDj) {
           setDj(demoDj);
           setWorks(getDemoWorksByDjId(demoDj.id));

@@ -77,13 +77,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [favoriteTrackIds, setFavoriteTrackIds] = useState<string[]>([]);
   const [repeatOne, setRepeatOne] = useState(false);
   const [musicScope, setMusicScope] = useState<string | null>(null);
+  const [playbackError, setPlaybackError] = useState("");
+  const playRequestRef = useRef(0);
 
   const startAudio = useCallback(async (trackOverride?: AudioPlayerTrack | null) => {
     const audio = audioRef.current;
     const track = trackOverride ?? currentTrack;
     if (!audio || !track) {
-      return;
+      return false;
     }
+
+    const playRequestId = playRequestRef.current + 1;
+    playRequestRef.current = playRequestId;
+    setPlaybackError("");
 
     try {
       if (!audioSourceMatches(audio, track.src)) {
@@ -98,15 +104,26 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       }
 
       await audio.play();
-      setIsPlaying(true);
+      if (playRequestRef.current === playRequestId) {
+        setIsPlaying(true);
+      }
+      return true;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         setIsPlaying(!audio.paused);
-        return;
+        return !audio.paused;
       }
 
-      console.error("[ROOM_9] Audio playback failed", error);
-      setIsPlaying(false);
+      const message =
+        error instanceof DOMException && error.name === "NotAllowedError"
+          ? "Tap play again to start audio in this browser."
+          : "Audio could not start. Check the track file or try another browser.";
+      console.warn("[ROOM_9] Audio playback failed", error);
+      if (playRequestRef.current === playRequestId) {
+        setPlaybackError(message);
+        setIsPlaying(false);
+      }
+      return false;
     }
   }, [currentTrack]);
 
@@ -212,14 +229,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         setSelectedTimestamp(null);
       },
       playTrack(track) {
+        if (!track.src) {
+          setPlaybackError("This track has no audio source yet.");
+          return;
+        }
+
         setQueue([track]);
         setCurrentIndex(0);
         setSelectedTimestamp(null);
-        if (currentTrack?.id === track.id) {
-          setCurrentTrack(track);
-          startAudio(track);
-          return;
-        }
         setCurrentTrack(track);
         startAudio(track);
       },
@@ -230,14 +247,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
         const safeIndex = Math.min(Math.max(startIndex, 0), tracks.length - 1);
         const nextTrack = tracks[safeIndex];
+        if (!nextTrack.src) {
+          setPlaybackError("This track has no audio source yet.");
+          return;
+        }
+
         setQueue(tracks);
         setCurrentIndex(safeIndex);
         setSelectedTimestamp(null);
-        if (currentTrack?.id === nextTrack.id) {
-          setCurrentTrack(nextTrack);
-          startAudio(nextTrack);
-          return;
-        }
         setCurrentTrack(nextTrack);
         startAudio(nextTrack);
       },
@@ -247,16 +264,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const safeIndex = Math.min(Math.max(index, 0), queue.length - 1);
-        if (currentTrack?.id === queue[safeIndex].id) {
-          setCurrentTrack(queue[safeIndex]);
-          startAudio(queue[safeIndex]);
+        const nextTrack = queue[safeIndex];
+        if (!nextTrack.src) {
+          setPlaybackError("This track has no audio source yet.");
           return;
         }
 
         setCurrentIndex(safeIndex);
         setSelectedTimestamp(null);
-        setCurrentTrack(queue[safeIndex]);
-        startAudio(queue[safeIndex]);
+        setCurrentTrack(nextTrack);
+        startAudio(nextTrack);
       },
       playPrevious() {
         if (queue.length === 0) {
@@ -264,6 +281,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const nextIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
+        if (!queue[nextIndex]?.src) {
+          setPlaybackError("This track has no audio source yet.");
+          return;
+        }
+
         setCurrentIndex(nextIndex);
         setSelectedTimestamp(null);
         setCurrentTrack(queue[nextIndex]);
@@ -275,6 +297,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const nextIndex = currentIndex >= queue.length - 1 ? 0 : currentIndex + 1;
+        if (!queue[nextIndex]?.src) {
+          setPlaybackError("This track has no audio source yet.");
+          return;
+        }
+
         setCurrentIndex(nextIndex);
         setSelectedTimestamp(null);
         setCurrentTrack(queue[nextIndex]);
@@ -298,7 +325,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           }
 
           const next = current.filter((_item, itemIndex) => itemIndex !== index);
+          const shouldContinuePlayback = isPlaying && index === currentIndex;
           if (next.length === 0) {
+            audioRef.current?.pause();
             setCurrentIndex(0);
             setCurrentTrack(null);
             setCurrentTime(0);
@@ -313,6 +342,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
             setCurrentIndex(nextIndex);
             setSelectedTimestamp(null);
             setCurrentTrack(next[nextIndex]);
+            if (shouldContinuePlayback) {
+              window.setTimeout(() => {
+                startAudio(next[nextIndex]);
+              }, 0);
+            }
           } else if (index < currentIndex) {
             setCurrentIndex(currentIndex - 1);
           }
@@ -348,6 +382,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
             workId: currentTrack.id
           });
           setIsPlaying(false);
+          setPlaybackError("");
         }
       },
       toggleRepeatOne() {
@@ -403,7 +438,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
             audioRef.current
               .play()
               .then(() => setIsPlaying(true))
-              .catch(() => setIsPlaying(false));
+              .catch(() => {
+                setPlaybackError("Repeat could not restart automatically. Tap play again.");
+                setIsPlaying(false);
+              });
           } else if (hasQueueControls) {
             value.playNext();
           } else {
@@ -432,6 +470,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           hasQueueControls={hasQueueControls}
           isFavorite={isFavorite}
           isPlaying={isPlaying}
+          playbackError={playbackError}
           repeatOne={repeatOne}
           onNext={value.playNext}
           onPrevious={value.playPrevious}
@@ -469,6 +508,7 @@ export function GlobalPlayer({
   hasQueueControls,
   isFavorite,
   isPlaying,
+  playbackError,
   repeatOne,
   onNext,
   onPrevious,
@@ -495,6 +535,7 @@ export function GlobalPlayer({
   hasQueueControls: boolean;
   isFavorite: boolean;
   isPlaying: boolean;
+  playbackError: string;
   repeatOne: boolean;
   onFavorite: () => void;
   onNext: () => void;
@@ -568,6 +609,11 @@ export function GlobalPlayer({
             </div>
             <span>{formatAudioTime(duration)}</span>
           </div>
+          {playbackError ? (
+            <p className="mt-1 truncate text-center font-mono text-[10px] uppercase text-warningOrange">
+              {playbackError}
+            </p>
+          ) : null}
         </div>
 
         <div className="room-mobile-scrollbar relative flex min-w-0 items-center justify-start gap-1 overflow-x-auto pb-1 lg:justify-end lg:overflow-visible lg:pb-0">

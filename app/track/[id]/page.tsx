@@ -30,6 +30,7 @@ import {
   formatSupabaseError,
   getSupabase,
   hasSupabaseConfig,
+  isRoom9DemoMode,
   logSupabaseError
 } from "@/lib/supabase";
 import { trackUserInteraction } from "@/lib/interactions";
@@ -200,8 +201,8 @@ export default function TrackPage() {
       setError("");
 
       try {
-        if (isDemoWorkId(params.id)) {
-          const demoWork = getDemoWork(params.id);
+        if (isRoom9DemoMode() && isDemoWorkId(params.id)) {
+          const demoWork = isRoom9DemoMode() ? getDemoWork(params.id) : null;
           if (demoWork) {
             const demoDj = getDemoDjProfile(demoWork.dj_id);
             setWork(demoWork);
@@ -228,7 +229,7 @@ export default function TrackPage() {
           .maybeSingle();
 
         if (workError || !workData) {
-          const demoWork = getDemoWork(params.id);
+          const demoWork = isRoom9DemoMode() ? getDemoWork(params.id) : null;
           if (demoWork) {
             const demoDj = getDemoDjProfile(demoWork.dj_id);
             setWork(demoWork);

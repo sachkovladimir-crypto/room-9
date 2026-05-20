@@ -11,6 +11,7 @@ import {
   getSupabase,
   hasSupabaseConfig,
   isMissingAuthSession,
+  isRoom9DemoMode,
   logSupabaseError
 } from "@/lib/supabase";
 import { getDemoDjProfile, getDemoWork, isDemoDjId, isDemoWorkId } from "@/lib/demoContent";
@@ -98,7 +99,7 @@ export default function BookingPage() {
 
       try {
         const supabase = getSupabase();
-        const demoDj = getDemoDjProfile(params.djId);
+        const demoDj = isRoom9DemoMode() ? getDemoDjProfile(params.djId) : null;
 
         if (demoDj) {
           setDj(demoDj);
@@ -136,7 +137,7 @@ export default function BookingPage() {
         setSourceMomentSeconds(Number.isFinite(moment) && moment > 0 ? Math.round(moment) : 0);
 
         if (workId) {
-          const demoWork = getDemoWork(workId);
+          const demoWork = isRoom9DemoMode() ? getDemoWork(workId) : null;
           if (demoWork) {
             setSourceWork(demoWork);
             setSourceDurationSeconds(demoWork.duration_seconds);

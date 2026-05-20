@@ -125,7 +125,7 @@ export function formatSupabaseError(error: unknown, fallback = "Supabase request
   if (isSupabaseNetworkError(error)) {
     return [
       "Could not reach Supabase.",
-      "The project URL is configured, but the request failed on the network/DNS layer. Refresh the page; if it keeps happening, restart npm run dev and check internet/DNS/VPN.",
+      "The project URL is configured, but the request failed on the network layer. Refresh the page; if it keeps happening, check the connection and Supabase project status.",
       message ? `Original error: ${message}` : ""
     ]
       .filter(Boolean)
@@ -136,8 +136,7 @@ export function formatSupabaseError(error: unknown, fallback = "Supabase request
     return [
       fallback,
       "Supabase email rate limit exceeded.",
-      "For the diploma demo, open Supabase Authentication > Providers > Email and turn off Confirm email, then register with a new email.",
-      "If you want to keep email confirmation on, wait for the rate limit window to reset or log in with an already confirmed account."
+      "Wait for the provider rate limit to reset or log in with an already confirmed account."
     ].join(" ");
   }
 
@@ -175,7 +174,7 @@ export function formatSupabaseError(error: unknown, fallback = "Supabase request
     lowerMessage.includes("permission denied") ||
     lowerMessage.includes("violates row-level security")
   ) {
-    return `${fallback} Supabase blocked the request with RLS. Re-run supabase/schema.sql so the demo policies are installed. ${message}`;
+    return `${fallback} Supabase blocked the request with RLS. Verify the deployed database policies and try again. ${message}`;
   }
 
   if (lowerMessage.includes("bucket") && lowerMessage.includes("not found")) {

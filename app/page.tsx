@@ -3,7 +3,7 @@ import { ButtonLink, StatusBadge } from "@/components/room9-ui";
 import { cssImageUrl, getWorkCoverUrl } from "@/lib/media";
 import { roomEvents } from "@/lib/room9Design";
 import { formatTrackTime, getPrimaryTrackMoment } from "@/lib/trackMoments";
-import type { DjProfile, LiveStream, Work } from "@/lib/types";
+import type { DjProfile, EventPost, LiveStream, Work } from "@/lib/types";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -28,11 +28,31 @@ type HomeSignal = {
   peakTime: string;
 };
 
+type HomeStream = {
+  artist: string;
+  href: string;
+  id: string;
+  location: string;
+  status: LiveStream["status"];
+  title: string;
+};
+
+type HomeEvent = {
+  date: string;
+  href: string;
+  id: string;
+  label: string;
+  title: string;
+  venue: string;
+};
+
 type HomeData = {
   activeEvents: number;
   liveStreams: number;
+  programme: HomeEvent[];
   publicSounds: number;
   signals: HomeSignal[];
+  streams: HomeStream[];
 };
 
 export default async function HomePage() {
@@ -122,6 +142,36 @@ export default async function HomePage() {
             <section className="grid grid-cols-2 gap-px bg-roomBorder p-px">
               <Metric label="Public sounds" value={homeData.publicSounds.toString()} accent={homeData.publicSounds > 0} />
               <Metric label="Live streams" value={homeData.liveStreams.toString()} />
+            </section>
+
+            <section className="border-t border-roomBorder p-6">
+              <div className="flex items-center justify-between">
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-mutedText">Live rooms</p>
+                <Link className="font-mono text-[10px] uppercase text-mutedText hover:text-acidGreen" href="/streams">
+                  Open
+                </Link>
+              </div>
+              <div className="mt-4 space-y-3">
+                {homeData.streams.length > 0 ? (
+                  homeData.streams.slice(0, 2).map((stream) => (
+                    <Link className="block border border-roomBorder bg-panelBlack p-3 transition hover:border-paperWhite" href={stream.href} key={stream.id}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="truncate font-display text-sm uppercase text-paperWhite">{stream.title}</p>
+                        <span className={stream.status === "live" ? "text-acidGreen" : "text-mutedText"}>
+                          {stream.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate font-mono text-[10px] uppercase text-mutedText">
+                        {stream.artist} / {stream.location}
+                      </p>
+                    </Link>
+                  ))
+                ) : (
+                  <p className="border border-roomBorder bg-panelBlack p-3 text-sm leading-6 text-mutedText">
+                    Live stream cards appear here after streams are published. Events and Streams still keep a prototype programme for presentation.
+                  </p>
+                )}
+              </div>
             </section>
           </aside>
         </div>
@@ -222,14 +272,23 @@ export default async function HomePage() {
             </h2>
           </div>
           <div className="grid gap-px bg-roomBorder md:grid-cols-2">
-            {roomEvents.slice(0, 4).map((event) => (
-              <Link className="bg-panelBlack p-5 transition hover:bg-inkPanel" href="/events" key={event.title}>
+            {(homeData.programme.length > 0
+              ? homeData.programme
+              : roomEvents.slice(0, 4).map((event, index) => ({
+                  date: `${event.month} / ${event.day}`,
+                  href: "/events",
+                  id: `sample-${index}-${event.title}`,
+                  label: "Prototype programme / open events",
+                  title: event.title,
+                  venue: event.venue
+                }))).map((event) => (
+              <Link className="bg-panelBlack p-5 transition hover:bg-inkPanel" href={event.href} key={event.id}>
                 <p className="font-mono text-[10px] uppercase text-acidGreen">
-                  {event.month} / {event.day}
+                  {event.date}
                 </p>
                 <h3 className="mt-3 font-display text-2xl uppercase text-paperWhite">{event.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-mutedText">{event.venue}</p>
-                <p className="mt-4 truncate font-mono text-[10px] uppercase text-mutedText">Sample programme / open events</p>
+                <p className="mt-4 truncate font-mono text-[10px] uppercase text-mutedText">{event.label}</p>
               </Link>
             ))}
           </div>
@@ -262,7 +321,7 @@ function LogicCell({ number, title, body }: { number: string; title: string; bod
 
 async function loadHomeData(): Promise<HomeData> {
   if (!supabaseUrl || !supabaseKey || demoMode) {
-    return { activeEvents: 0, liveStreams: 0, publicSounds: 0, signals: [] };
+    return { activeEvents: 0, liveStreams: 0, programme: [], publicSounds: 0, signals: [], streams: [] };
   }
 
   try {
@@ -275,13 +334,16 @@ async function loadHomeData(): Promise<HomeData> {
         visibility: "eq.public"
       }),
       readSupabaseRows<LiveStream>("live_streams", {
-        limit: "20",
-        select: "id,status",
-        status: "eq.live"
+        limit: "6",
+        order: "status.asc,starts_at.desc.nullslast,created_at.desc",
+        select: "id,title,artist_name,location,genre,status,starts_at,created_at",
+        status: "in.(live,upcoming)"
       }),
-      readSupabaseRows<{ id: string }>("events", {
-        limit: "20",
-        select: "id"
+      readSupabaseRows<EventPost>("events", {
+        limit: "4",
+        order: "event_date.asc.nullslast,created_at.desc",
+        select: "id,title,venue_name,city,country,event_date,event_type,status",
+        status: "eq.public"
       })
     ]);
 
@@ -300,7 +362,15 @@ async function loadHomeData(): Promise<HomeData> {
 
     return {
       activeEvents: events.length,
-      liveStreams: liveStreams.length,
+      liveStreams: liveStreams.filter((stream) => stream.status === "live").length,
+      programme: events.map((event) => ({
+        date: formatHomeDate(event.event_date),
+        href: `/events/${event.id}`,
+        id: event.id,
+        label: event.event_type ? `${event.event_type} / published event` : "Published event",
+        title: event.title || "Untitled event",
+        venue: [event.venue_name, event.city || event.country].filter(Boolean).join(", ") || "Venue TBA"
+      })),
       publicSounds: playableWorks.length,
       signals: playableWorks.slice(0, 4).map((work) => {
         const dj = djLookup[work.dj_id] ?? null;
@@ -319,11 +389,36 @@ async function loadHomeData(): Promise<HomeData> {
           title: work.title || "Untitled sound",
           peakTime: formatTrackTime(peak.seconds)
         };
-      })
+      }),
+      streams: liveStreams.map((stream) => ({
+        artist: stream.artist_name || "ROOM_9 stream",
+        href: `/streams/${stream.id}`,
+        id: stream.id,
+        location: stream.location || "Global",
+        status: stream.status,
+        title: stream.title || "Untitled stream"
+      }))
     };
   } catch {
-    return { activeEvents: 0, liveStreams: 0, publicSounds: 0, signals: [] };
+    return { activeEvents: 0, liveStreams: 0, programme: [], publicSounds: 0, signals: [], streams: [] };
   }
+}
+
+function formatHomeDate(value: string | null) {
+  if (!value) {
+    return "TBA";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "TBA";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC"
+  }).format(date);
 }
 
 async function readSupabaseRows<T>(table: string, params: Record<string, string>) {

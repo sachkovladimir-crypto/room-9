@@ -67,6 +67,15 @@ type VaultTab =
 
 type VaultMode = "overview" | "tracks" | "briefs" | "playlists" | "uploads" | "network";
 
+type VaultModeMeta = {
+  description: string;
+  href: string;
+  id: VaultMode;
+  label: string;
+  note: string;
+  tab: VaultTab;
+};
+
 type UploadForm = {
   bpm: string;
   description: string;
@@ -107,19 +116,61 @@ const emptyReleaseForm: ReleaseForm = {
   visibility: "public"
 };
 
-const vaultModes: Array<{ id: VaultMode; href: string; label: string; tab: VaultTab; note: string }> = [
-  { id: "overview", href: "/library", label: "Overview", tab: "saved-moments", note: "signals + next action" },
-  { id: "tracks", href: "/library/tracks", label: "Tracks", tab: "saved-tracks", note: "liked + history" },
-  { id: "briefs", href: "/library/moments", label: "Briefs", tab: "saved-moments", note: "moments + bookings" },
-  { id: "playlists", href: "/library/playlists", label: "Playlists", tab: "playlists", note: "CRUD + order" },
-  { id: "uploads", href: "/library/uploads", label: "Uploads", tab: "uploads", note: "DJ releases" },
-  { id: "network", href: "/library/network", label: "Network", tab: "followed-djs", note: "artists" }
+const vaultModes: VaultModeMeta[] = [
+  {
+    description: "A compact command view for your listening signals, recommendations and next queue action.",
+    href: "/library",
+    id: "overview",
+    label: "Overview",
+    note: "signals + next action",
+    tab: "saved-moments"
+  },
+  {
+    description: "Saved, liked and recently played tracks with queue and playlist actions.",
+    href: "/library/tracks",
+    id: "tracks",
+    label: "Tracks",
+    note: "liked + history",
+    tab: "saved-tracks"
+  },
+  {
+    description: "Atmosphere Briefs created from exact timestamps and ready for event slots or bookings.",
+    href: "/library/moments",
+    id: "briefs",
+    label: "Briefs",
+    note: "moments + bookings",
+    tab: "saved-moments"
+  },
+  {
+    description: "Personal playlists scoped to your account with cover, order and playback controls.",
+    href: "/library/playlists",
+    id: "playlists",
+    label: "Playlists",
+    note: "CRUD + order",
+    tab: "playlists"
+  },
+  {
+    description: "Verified DJ upload surface for tracks, metadata, covers, EPs, albums and sets.",
+    href: "/library/uploads",
+    id: "uploads",
+    label: "Uploads",
+    note: "DJ releases",
+    tab: "uploads"
+  },
+  {
+    description: "Followed artists and booking-ready recommendations built from your saved sound signals.",
+    href: "/library/network",
+    id: "network",
+    label: "Network",
+    note: "artists",
+    tab: "followed-djs"
+  }
 ];
 
 export default function LibraryPage({ initialMode }: { initialMode?: VaultMode } = {}) {
   const [scope, setScope] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [activeRoles, setActiveRoles] = useState<Role[]>(["listener"]);
+  const [, setActiveRoles] = useState<Role[]>(["listener"]);
   const [djProfile, setDjProfile] = useState<DjProfile | null>(null);
   const [activeTab, setActiveTab] = useState<VaultTab>(getVaultTabForMode(initialMode ?? "overview"));
   const [activeMode, setActiveMode] = useState<VaultMode>(initialMode ?? "overview");
@@ -261,8 +312,9 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
           setSavedMoments(moments);
           setSelectedPlaylistId(nextPlaylists[0]?.id ?? null);
           const ids = collectVaultWorkIds(favorites, history, nextPlaylists, moments);
-          setWorks(demoWorks.filter((work) => ids.includes(work.id)));
-          setDjLookup(getDemoDjLookup());
+          const demoLoadedWorks = isRoom9DemoMode() ? demoWorks.filter((work) => ids.includes(work.id)) : [];
+          setWorks(demoLoadedWorks);
+          setDjLookup(isRoom9DemoMode() ? getDemoDjLookup() : {});
         })
         .finally(() => setIsLoading(false));
       return;
@@ -639,7 +691,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
   }
 
   function canShowVaultModule(moduleId: string, modes: VaultMode[]) {
-    return !hiddenModules[moduleId] && (activeMode === "overview" || modes.includes(activeMode));
+    return !hiddenModules[moduleId] && modes.includes(activeMode);
   }
 
   function playWork(work: Work) {
@@ -1190,11 +1242,10 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
           <div className="min-w-0">
             <p className="room-tiny text-mutedText">Listener system / saved atmosphere briefs</p>
             <h1 className="mt-2 overflow-hidden break-words font-display text-[clamp(2rem,11vw,2.65rem)] leading-none text-paperWhite md:text-[42px]">
-              Your Sound Vault
+              {activeMode === "overview" ? "Your Sound Vault" : `Sound Vault / ${activeModeConfig.label}`}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-mutedText">
-              Saved tracks, atmosphere briefs, queue, listening history and booking-ready
-              references live here before they become case files.
+              {activeModeConfig.description}
             </p>
           </div>
 
@@ -1283,6 +1334,38 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
           </div>
         </div>
       </section>
+
+      {activeMode === "overview" ? (
+        <section className="border-b border-roomBorder px-5 py-7 md:px-10">
+          <div className="mx-auto max-w-[1680px]">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="room-tiny">Vault map</p>
+                <h2 className="mt-3 font-display text-2xl uppercase text-paperWhite">Choose a deeper surface</h2>
+              </div>
+              <p className="max-w-xl text-sm leading-6 text-mutedText">
+                The overview stays light. Open the dedicated section when you want to manage tracks, briefs, playlists, uploads or artist network.
+              </p>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              {vaultModes.filter((mode) => mode.id !== "overview").map((mode) => (
+                <Link
+                  className="group flex min-h-[148px] flex-col justify-between border border-roomBorder bg-panelBlack p-4 transition hover:border-acidGreen hover:bg-[#101700]"
+                  href={mode.href}
+                  key={`overview-${mode.id}`}
+                  onClick={() => selectVaultMode(mode.id)}
+                >
+                  <div>
+                    <p className="room-tiny text-mutedText">{mode.note}</p>
+                    <h3 className="mt-3 font-display text-xl uppercase text-paperWhite group-hover:text-acidGreen">{mode.label}</h3>
+                  </div>
+                  <p className="mt-5 text-xs leading-5 text-mutedText">{mode.description}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {canShowVaultModule("signal-profile", ["overview"]) ? (
       <section className="border-b border-roomBorder px-5 py-7 md:px-10">
@@ -1426,7 +1509,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
       </section>
       ) : null}
 
-      {hasRoleAccess(activeRoles, ["dj"]) && canShowVaultModule("uploads", ["uploads"]) ? (
+      {canShowVaultModule("uploads", ["uploads"]) ? (
         <section className="border-b border-roomBorder px-5 py-7 md:px-10">
           <div className="mx-auto mb-4 flex max-w-[1680px] flex-wrap items-center justify-between gap-3">
             <div>
@@ -1665,7 +1748,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
           </section>
           ) : null}
 
-          {followedDjs.length > 0 && canShowVaultModule("network", ["network"]) ? (
+          {canShowVaultModule("network", ["network"]) ? (
             <section>
               <div className="mb-4 flex items-end justify-between gap-4">
                 <div>
@@ -1935,8 +2018,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
             <div className="mt-4 space-y-3">
               {playlists.length === 0 ? (
                 <p className="text-sm leading-6 text-mutedText">
-                  Personal playlists are stored per account in Supabase when signed in, with a local
-                  demo fallback. Create and manage them from this Sound Vault.
+                  Personal playlists are stored per account in Supabase when signed in. Create and manage them from this Sound Vault.
                 </p>
               ) : (
                 playlists.slice(0, 6).map((playlist) => (
@@ -1984,6 +2066,38 @@ function VaultSignal({
       </p>
       {meta ? <p className="mt-1 truncate font-mono text-[10px] uppercase text-mutedText">{meta}</p> : null}
     </div>
+  );
+}
+
+function CoverUrlFallback({
+  disabled,
+  label = "Advanced URL fallback",
+  onChange,
+  value
+}: {
+  disabled?: boolean;
+  label?: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <details className="border border-roomBorder bg-black/40 p-3">
+      <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] text-mutedText transition hover:text-paperWhite">
+        {label}
+      </summary>
+      <label className="mt-3 block">
+        <span className="room-label">Cover URL</span>
+        <Input
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="https://..."
+          value={value}
+        />
+      </label>
+      <p className="mt-2 text-xs leading-5 text-mutedText">
+        Prefer file upload for real ROOM_9 media. URL is kept only for migration and external storage fallback.
+      </p>
+    </details>
   );
 }
 
@@ -2148,14 +2262,11 @@ function EditTrackPanel({
           />
           <div className="grid gap-3">
             <label>
-              <span className="room-label">Cover image URL</span>
-              <Input onChange={(event) => onFormChange({ ...form, coverImage: event.target.value })} placeholder="https://..." value={form.coverImage} />
-            </label>
-            <label>
               <span className="room-label">Upload new cover</span>
               <Input accept="image/jpeg,image/png,image/webp,image/gif" onChange={onCoverChange} type="file" />
               {coverFile ? <p className="mt-2 text-xs text-mutedText">{coverFile.name}</p> : null}
             </label>
+            <CoverUrlFallback onChange={(value) => onFormChange({ ...form, coverImage: value })} value={form.coverImage} />
           </div>
         </div>
         <label className="block">
@@ -2266,18 +2377,11 @@ function ReleaseManagerPanel({
               </label>
             </div>
             <label>
-              <span className="room-label">Cover URL</span>
-              <Input
-                onChange={(event) => onFormChange({ ...form, coverImage: event.target.value })}
-                placeholder="https://..."
-                value={form.coverImage}
-              />
-            </label>
-            <label>
               <span className="room-label">Upload cover</span>
               <Input accept="image/jpeg,image/png,image/webp,image/gif" onChange={onReleaseCoverChange} type="file" />
               {releaseCoverFile ? <p className="mt-2 text-xs text-mutedText">{releaseCoverFile.name}</p> : null}
             </label>
+            <CoverUrlFallback onChange={(value) => onFormChange({ ...form, coverImage: value })} value={form.coverImage} />
             <label>
               <span className="room-label">Description</span>
               <Textarea
@@ -2446,14 +2550,11 @@ function PlaylistDetailsPanel({
             <Input disabled={!playlist} onChange={(event) => onNameChange(event.target.value)} value={playlistEditName} />
           </label>
           <label>
-            <span className="room-label">Cover image URL</span>
-            <Input disabled={!playlist} onChange={(event) => onCoverImageChange(event.target.value)} placeholder="https://..." value={playlistCoverImage} />
-          </label>
-          <label>
             <span className="room-label">Upload playlist cover</span>
             <Input accept="image/jpeg,image/png,image/webp,image/gif" disabled={!playlist} onChange={onCoverChange} type="file" />
             {coverFile ? <p className="mt-2 text-xs text-mutedText">{coverFile.name}</p> : null}
           </label>
+          <CoverUrlFallback disabled={!playlist} onChange={onCoverImageChange} value={playlistCoverImage} />
           <Button disabled={!playlist} loading={isSaving} size="sm" type="submit" variant="secondary">
             Save Playlist Details
           </Button>
