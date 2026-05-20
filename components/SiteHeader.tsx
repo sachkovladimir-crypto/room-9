@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ExternalGlyph } from "@/components/room9-icons";
+import { cx } from "@/components/room9-ui";
 import {
   formatSupabaseError,
   getSupabase,
@@ -23,6 +24,7 @@ export function SiteHeader() {
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isImmersivePage =
     pathname?.startsWith("/dashboard") ||
     pathname?.startsWith("/library") ||
@@ -34,6 +36,11 @@ export function SiteHeader() {
     pathname?.startsWith("/update-password") ||
     pathname?.startsWith("/auth/callback") ||
     pathname?.startsWith("/booking/details");
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setProfileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (isImmersivePage || !hasSupabaseConfig()) {
@@ -127,6 +134,7 @@ export function SiteHeader() {
       setProfile(null);
       setActiveRoles(["listener"]);
       setProfileMenuOpen(false);
+      setMobileMenuOpen(false);
       router.push("/");
       router.refresh();
     } catch (caughtError) {
@@ -141,6 +149,7 @@ export function SiteHeader() {
   function handleGlobalSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = search.trim();
+    setMobileMenuOpen(false);
     router.push(query ? `/explore?q=${encodeURIComponent(query)}` : "/explore");
   }
 
@@ -174,10 +183,10 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-roomBorder bg-voidBlack/95 backdrop-blur">
-      <div className="mx-auto grid min-h-14 w-full max-w-[1920px] grid-cols-[112px_1fr_auto_auto] items-center gap-3 px-4 py-2 md:px-6">
+      <div className="mx-auto grid min-h-14 w-full max-w-[1920px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2 md:grid-cols-[112px_1fr_auto_auto] md:gap-3 md:px-6">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 font-display text-lg uppercase leading-none text-paperWhite"
+          className="flex shrink-0 items-center gap-2 font-display text-base uppercase leading-none text-paperWhite md:text-lg"
         >
           ROOM_9
         </Link>
@@ -217,10 +226,33 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="relative flex items-center gap-2">
+        <div className="hidden items-center justify-end gap-2 md:flex">
+          <button
+            aria-expanded={mobileMenuOpen}
+            aria-label="Open navigation menu"
+            className="grid h-9 w-9 place-items-center border border-roomBorder bg-panelBlack font-mono text-[10px] font-black uppercase text-paperWhite transition hover:border-paperWhite lg:hidden"
+            onClick={() => setMobileMenuOpen((current) => !current)}
+            type="button"
+          >
+            <MenuIcon />
+          </button>
+        </div>
+
+        <div className="relative flex items-center justify-end gap-2">
+          <button
+            aria-expanded={mobileMenuOpen}
+            aria-label="Open navigation menu"
+            className="grid h-10 w-10 place-items-center border border-roomBorder bg-panelBlack text-paperWhite transition hover:border-paperWhite md:hidden"
+            onClick={() => setMobileMenuOpen((current) => !current)}
+            type="button"
+          >
+            <MenuIcon />
+          </button>
           {!isLoading && profile ? (
             <>
-              <NotificationCenter />
+              <div className="hidden sm:block">
+                <NotificationCenter />
+              </div>
               <button
                 aria-expanded={profileMenuOpen}
                 aria-label="Open profile menu"
@@ -231,7 +263,7 @@ export function SiteHeader() {
                 {profileInitials}
               </button>
               {profileMenuOpen ? (
-                <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-[300px] border border-strongBorder bg-black p-3 shadow-[0_18px_60px_rgba(0,0,0,0.72)]">
+                <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-[min(300px,calc(100vw-24px))] border border-strongBorder bg-black p-3 shadow-[0_18px_60px_rgba(0,0,0,0.72)]">
                   <div className="border-b border-roomBorder pb-3">
                     <p className="truncate font-display text-base uppercase text-paperWhite" title={profileLabel}>
                       {profileLabel}
@@ -273,12 +305,82 @@ export function SiteHeader() {
           )}
         </div>
       </div>
+      {mobileMenuOpen ? (
+        <div className="border-t border-roomBorder bg-black px-3 py-3 lg:hidden">
+          <form className="grid gap-2" onSubmit={handleGlobalSearch}>
+            <label>
+              <span className="sr-only">Global search</span>
+              <input
+                aria-label="Global search"
+                className="h-11 w-full border border-roomBorder bg-voidBlack px-3 font-mono text-[11px] uppercase text-bone outline-none placeholder:text-neutral-700 focus:border-paperWhite"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search tracks, DJs, events..."
+                value={search}
+              />
+            </label>
+            <button
+              className="min-h-11 border border-acidGreen bg-acidGreen px-4 font-mono text-[10px] font-black uppercase text-black"
+              type="submit"
+            >
+              Search
+            </button>
+          </form>
+          <nav className="mt-3 grid grid-cols-2 gap-2">
+            {navLinks.map(([label, href]) => (
+              <Link
+                className={cx(
+                  "border px-3 py-3 font-mono text-[10px] font-black uppercase transition",
+                  (href === "/streams" && isStreams) ||
+                    (href === "/events" && isEvents) ||
+                    (href === "/library" && isLibrary) ||
+                    (href === "/explore" && isExplore)
+                    ? "border-acidGreen bg-[#142000] text-acidGreen"
+                    : "border-roomBorder bg-panelBlack text-mutedText"
+                )}
+                href={href}
+                key={label}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {profile ? (
+              <>
+                <Link className="room-button min-h-11" href={professionalHref}>
+                  Workspace
+                </Link>
+                <button className="room-button min-h-11" onClick={handleLogout} type="button">
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link className="room-button min-h-11" href="/login">
+                  Login
+                </Link>
+                <Link className="room-button-solid min-h-11" href="/register">
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
       {isHome ? (
         <div className="border-t border-roomBorder px-4 py-1 text-center font-mono text-[9px] uppercase text-mutedText">
           Desktop music discovery / live stream / atmosphere briefs / system 2026
         </div>
       ) : null}
     </header>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
   );
 }
 

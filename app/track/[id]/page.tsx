@@ -542,17 +542,17 @@ export default function TrackPage() {
         </audio>
       ) : null}
       <TrackTerminalHeader />
-      <section className="border-b border-roomBorder px-5 py-6 md:px-6">
+      <section className="border-b border-roomBorder px-4 py-6 sm:px-5 md:px-6">
         <div className="mx-auto grid max-w-[1560px] gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
               <StatusBadge status="public">Track</StatusBadge>
               <p className="font-mono text-[10px] uppercase text-mutedText">ID: {work.id.slice(0, 8)} / audio topography</p>
             </div>
-            <h1 className="mt-4 font-display text-[52px] uppercase leading-[0.88] text-paperWhite md:text-[74px]">
+            <h1 className="mt-4 max-w-full overflow-hidden break-words font-display text-[clamp(2.1rem,11vw,4.1rem)] uppercase leading-[0.9] text-paperWhite md:text-[74px]">
               {trackTitle}
             </h1>
-            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-mutedText">
+            <p className="mt-3 max-w-full overflow-hidden break-words font-mono text-[10px] uppercase tracking-[0.14em] text-mutedText">
               {[artistName, trackGenre, `${trackBpm} BPM`, durationLabel, artistCity || "Location TBA"].filter(Boolean).join(" / ")}
             </p>
           </div>
@@ -596,7 +596,7 @@ export default function TrackPage() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-[1560px] gap-6 px-6 py-8 md:px-10 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="mx-auto grid max-w-[1560px] gap-6 px-4 py-6 sm:px-6 md:px-10 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-6">
           <Panel className="p-5 md:p-6">
             <SectionHeader
@@ -785,8 +785,8 @@ export default function TrackPage() {
                 className="h-24 w-24 shrink-0 border border-roomBorder bg-inkPanel bg-cover bg-center grayscale"
                 style={{ backgroundImage: cssImageUrl(getDjAvatarUrl(dj)) }}
               />
-              <div>
-                <h2 className="font-display text-3xl uppercase leading-none text-paperWhite">{artistName}</h2>
+              <div className="min-w-0">
+                <h2 className="overflow-hidden break-words font-display text-3xl uppercase leading-none text-paperWhite">{artistName}</h2>
                 <p className="mt-3 text-sm leading-6 text-mutedText">
                   {[dj?.genres || trackGenre, artistCity].filter(Boolean).join(" / ")}
                 </p>
@@ -805,14 +805,14 @@ function isUuidLike(value: string) {
 
 function TrackTerminalHeader() {
   return (
-    <header className="flex min-h-[61px] items-center justify-between border-b border-paperWhite bg-black px-6 font-mono text-[12px] uppercase tracking-[0.08em] text-mutedText">
-      <div className="flex items-center gap-8">
+    <header className="flex min-h-[61px] flex-wrap items-center justify-between gap-3 border-b border-paperWhite bg-black px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-mutedText sm:px-6 sm:text-[12px]">
+      <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-8">
         <Link className="font-display text-xl uppercase tracking-normal text-paperWhite" href="/">
           ROOM_9
         </Link>
-        <span>Booking Terminal // v.2.4</span>
+        <span className="min-w-0 truncate">Booking Terminal // v.2.4</span>
       </div>
-      <nav className="flex items-center gap-7 text-paperWhite">
+      <nav className="flex flex-wrap items-center gap-3 text-paperWhite sm:gap-7">
         <Link className="transition hover:text-acidGreen" href="/explore">
           Search
         </Link>
@@ -876,7 +876,7 @@ function WaveformEvidence({
         <span>00:00</span>
         <span>{duration ? formatTrackTime(duration) : "Analyzing"}</span>
       </div>
-      <svg className="block h-[280px] w-full" preserveAspectRatio="none" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Track waveform evidence">
+      <svg className="block h-[220px] w-full sm:h-[280px]" preserveAspectRatio="none" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Track waveform evidence">
         <defs>
           <filter id="room9-wave-glow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3" result="blur" />

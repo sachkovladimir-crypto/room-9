@@ -105,7 +105,7 @@ function ExplorePageContent() {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [roomTypeFilters, setRoomTypeFilters] = useState<string[]>([]);
-  const [trackDurations, setTrackDurations] = useState<Record<string, number>>({});
+  const [trackDurations] = useState<Record<string, number>>({});
   const [musicScope, setMusicScope] = useState<string | null>(null);
   const [savedTrackIds, setSavedTrackIds] = useState<string[]>([]);
   const [soundProfile, setSoundProfile] = useState<UserSoundProfile | null>(null);
@@ -797,7 +797,7 @@ function ExplorePageContent() {
                 value={query}
               />
             </label>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            <div className="hidden gap-2 md:grid md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
               <CompactSelect label="Genre" value={genreFilter} values={genreOptions} onChange={setGenreFilter} />
               <CompactSelect label="City / Location" value={locationFilter} values={locationOptions} onChange={setLocationFilter} />
               <CompactSelect label="BPM range" value={bpmFilter} values={bpmOptions} onChange={setBpmFilter} />
@@ -830,8 +830,8 @@ function ExplorePageContent() {
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-roomBorder pt-3">
-            <span className="room-label mr-2">Search layer</span>
+          <div className="room-mobile-scrollbar mt-3 flex items-center gap-2 overflow-x-auto border-t border-roomBorder pt-3 md:flex-wrap md:overflow-visible">
+            <span className="room-label mr-2 shrink-0">Search layer</span>
             <SearchModeButton
               active={searchMode === "sounds"}
               count={soundQueue.length}
@@ -847,15 +847,16 @@ function ExplorePageContent() {
             <SearchModeButton
               active={searchMode === "releases"}
               count={releaseResults.length}
-              label="Albums / EPs"
+              label="Albums"
               onClick={() => setSearchMode("releases")}
             />
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-roomBorder pt-3">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="room-mobile-scrollbar -mx-1 flex max-w-full items-center gap-2 overflow-x-auto px-1 pb-1 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
               <Button
                 active={!filtersAreActive}
+                className="shrink-0"
                 onClick={() => {
                   setQuery("");
                   setGenreFilter("All");
@@ -876,6 +877,7 @@ function ExplorePageContent() {
               </Button>
               <Button
                 active={liveReadyOnly}
+                className="shrink-0"
                 onClick={() => setLiveReadyOnly((current) => !current)}
                 size="sm"
                 type="button"
@@ -885,6 +887,7 @@ function ExplorePageContent() {
               </Button>
               <Button
                 active={verifiedOnly}
+                className="shrink-0"
                 onClick={() => setVerifiedOnly((current) => !current)}
                 size="sm"
                 type="button"
@@ -893,6 +896,7 @@ function ExplorePageContent() {
                 Verified
               </Button>
               <Button
+                className="shrink-0"
                 onClick={() => {
                   setQuery("");
                   setGenreFilter("All");
@@ -927,10 +931,11 @@ function ExplorePageContent() {
                 />
               ))}
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-3">
               {savedSearchNotice ? <span className="room-tiny text-successGreen">{savedSearchNotice}</span> : null}
               <Button
                 active={advancedFiltersOpen || roomTypeFilters.length > 0}
+                className="justify-center"
                 onClick={() => setAdvancedFiltersOpen((current) => !current)}
                 size="sm"
                 type="button"
@@ -938,7 +943,7 @@ function ExplorePageContent() {
               >
                 Sound Filters
               </Button>
-              <Button onClick={saveSearch} size="sm" type="button" variant="secondary">
+              <Button className="justify-center" onClick={saveSearch} size="sm" type="button" variant="secondary">
                 Save Search
               </Button>
             </div>
@@ -955,7 +960,7 @@ function ExplorePageContent() {
           <div
             aria-label="Sound filter command palette"
             aria-modal="true"
-            className="absolute bottom-[92px] right-3 top-[76px] w-[min(380px,calc(100vw-24px))] border border-strongBorder bg-voidBlack shadow-[0_20px_80px_rgba(0,0,0,0.72)]"
+            className="absolute bottom-[calc(9.5rem+env(safe-area-inset-bottom))] left-3 right-3 top-[72px] w-auto border border-strongBorder bg-voidBlack shadow-[0_20px_80px_rgba(0,0,0,0.72)] sm:bottom-[92px] sm:left-auto sm:right-3 sm:w-[min(380px,calc(100vw-24px))]"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
@@ -1094,23 +1099,6 @@ function ExplorePageContent() {
                     )}
                     key={work.id}
                   >
-                    {work.link ? (
-                      <audio
-                        preload="metadata"
-                        src={work.link}
-                        onLoadedMetadata={(event) => {
-                          const loadedDuration = Number.isFinite(event.currentTarget.duration)
-                            ? event.currentTarget.duration
-                            : work.duration_seconds ?? 0;
-                          setTrackDurations((currentDurations) => ({
-                            ...currentDurations,
-                            [work.id]: loadedDuration
-                          }));
-                        }}
-                      >
-                        <track kind="captions" />
-                      </audio>
-                    ) : null}
                     <button
                       className={cx(
                         "grid h-9 w-9 place-items-center border font-mono text-xs font-black transition",
@@ -1349,7 +1337,7 @@ function SearchModeButton({
   return (
     <Button
       active={active}
-      className="justify-between gap-3"
+      className="min-w-fit shrink-0 justify-between gap-3 whitespace-nowrap"
       onClick={onClick}
       size="sm"
       type="button"
@@ -1705,7 +1693,7 @@ function AdvancedSoundFiltersPanel({
 function ActiveTag({ label, onClear }: { label: string; onClear?: () => void }) {
   return (
     <button
-      className="inline-flex items-center gap-2 border border-roomBorder px-3 py-2 font-mono text-[10px] uppercase text-mutedText hover:border-paperWhite hover:text-paperWhite"
+      className="inline-flex shrink-0 items-center gap-2 border border-roomBorder px-3 py-2 font-mono text-[10px] uppercase text-mutedText hover:border-paperWhite hover:text-paperWhite"
       type="button"
       onClick={onClear}
     >

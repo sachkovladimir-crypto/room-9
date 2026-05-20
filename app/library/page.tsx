@@ -123,8 +123,8 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
   const [activeTab, setActiveTab] = useState<VaultTab>(getVaultTabForMode(initialMode ?? "overview"));
   const [activeMode, setActiveMode] = useState<VaultMode>(initialMode ?? "overview");
   const [hiddenModules, setHiddenModules] = useState<Record<string, boolean>>({});
-  const [bootProgress, setBootProgress] = useState(0);
-  const [bootComplete, setBootComplete] = useState(false);
+  const [bootProgress, setBootProgress] = useState(100);
+  const [bootComplete, setBootComplete] = useState(true);
   const [query, setQuery] = useState("");
   const [playlistName, setPlaylistName] = useState("");
   const [playlistEditName, setPlaylistEditName] = useState("");
@@ -1184,11 +1184,11 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
   return (
     <main className="min-h-screen bg-voidBlack text-paperWhite">
       <div className="min-h-screen">
-      <section className="border-b border-roomBorder px-5 py-5 md:px-10">
+      <section className="border-b border-roomBorder px-4 py-5 sm:px-5 md:px-10">
         <div className="mx-auto flex max-w-[1680px] flex-wrap items-start justify-between gap-5">
-          <div>
+          <div className="min-w-0">
             <p className="room-tiny text-mutedText">Listener system / saved atmosphere briefs</p>
-            <h1 className="mt-2 font-display text-[34px] leading-none text-paperWhite md:text-[42px]">
+            <h1 className="mt-2 overflow-hidden break-words font-display text-[clamp(2rem,11vw,2.65rem)] leading-none text-paperWhite md:text-[42px]">
               Your Sound Vault
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-mutedText">
@@ -1207,7 +1207,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
                 value={query}
               />
             </label>
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
               <Button disabled={visibleQueue.length === 0} onClick={playVisibleQueue} size="sm" type="button" variant="primary">
                 Play Visible
               </Button>
@@ -1222,13 +1222,13 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
         </div>
       </section>
 
-      <section className="border-b border-roomBorder px-5 md:px-10">
-        <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-5 py-4">
-          <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase">
+      <section className="border-b border-roomBorder px-4 sm:px-5 md:px-10">
+        <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-4 py-4">
+          <div className="room-mobile-scrollbar -mx-1 flex w-full items-center gap-2 overflow-x-auto px-1 pb-1 font-mono text-[11px] uppercase lg:w-auto lg:overflow-visible lg:pb-0">
             {vaultModes.map((mode) => (
               <Link
                 className={cx(
-                  "border px-3 py-2 transition",
+                  "min-w-[132px] shrink-0 border px-3 py-2 transition",
                   activeMode === mode.id
                     ? "border-acidGreen bg-acidGreen text-voidBlack"
                     : "border-roomBorder bg-black text-mutedText hover:border-paperWhite hover:text-paperWhite"
@@ -1264,7 +1264,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
       {error ? <p className="border-b border-roomBorder px-5 py-3 text-sm text-errorRed md:px-10">{error}</p> : null}
       {notice ? <p className="border-b border-roomBorder px-5 py-3 font-mono text-[11px] uppercase text-acidGreen md:px-10">{notice}</p> : null}
 
-      <section className="border-b border-roomBorder px-5 py-4 md:px-10">
+      <section className="border-b border-roomBorder px-4 py-4 sm:px-5 md:px-10">
         <div className="mx-auto grid max-w-[1680px] gap-3 lg:grid-cols-4">
           <VaultSignal label="Active source" value={activeTabLabel} meta={`${filteredWorks.length} tracks / ${filteredMoments.length} moments`} tone="accent" />
           <VaultSignal label="Now playing" value={currentTrack?.title ?? "No active track"} meta={currentTrack?.artist ?? "Start a queue"} />

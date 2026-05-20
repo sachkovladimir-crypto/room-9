@@ -49,6 +49,20 @@ type AudioPlayerContextValue = {
 
 const AudioPlayerContext = createContext<AudioPlayerContextValue | null>(null);
 
+function audioSourceMatches(audio: HTMLAudioElement, source: string) {
+  const attrSource = audio.getAttribute("src") || "";
+  const resolvedSource = audio.src || "";
+  const currentSource = audio.currentSrc || "";
+
+  return (
+    attrSource === source ||
+    resolvedSource === source ||
+    currentSource === source ||
+    resolvedSource.endsWith(source) ||
+    currentSource.endsWith(source)
+  );
+}
+
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -72,7 +86,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      if (audio.getAttribute("src") !== track.src) {
+      if (!audioSourceMatches(audio, track.src)) {
         audio.src = track.src;
         audio.load();
       }
@@ -86,19 +100,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       await audio.play();
       setIsPlaying(true);
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setIsPlaying(!audio.paused);
+        return;
+      }
+
       console.error("[ROOM_9] Audio playback failed", error);
       setIsPlaying(false);
     }
   }, [currentTrack]);
-
-  useEffect(() => {
-    if (!currentTrack || !audioRef.current) {
-      return;
-    }
-
-    audioRef.current.load();
-    startAudio(currentTrack);
-  }, [currentTrack, startAudio]);
 
   useEffect(() => {
     if (!hasSupabaseConfig()) {
@@ -211,6 +221,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
         setCurrentTrack(track);
+        startAudio(track);
       },
       playQueue(tracks, startIndex = 0) {
         if (tracks.length === 0) {
@@ -228,6 +239,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
         setCurrentTrack(nextTrack);
+        startAudio(nextTrack);
       },
       playQueueIndex(index) {
         if (queue.length === 0) {
@@ -244,6 +256,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         setCurrentIndex(safeIndex);
         setSelectedTimestamp(null);
         setCurrentTrack(queue[safeIndex]);
+        startAudio(queue[safeIndex]);
       },
       playPrevious() {
         if (queue.length === 0) {
@@ -254,6 +267,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         setCurrentIndex(nextIndex);
         setSelectedTimestamp(null);
         setCurrentTrack(queue[nextIndex]);
+        startAudio(queue[nextIndex]);
       },
       playNext() {
         if (queue.length === 0) {
@@ -264,6 +278,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         setCurrentIndex(nextIndex);
         setSelectedTimestamp(null);
         setCurrentTrack(queue[nextIndex]);
+        startAudio(queue[nextIndex]);
       },
       removeFromQueue(index) {
         const removedTrack = queue[index];
@@ -368,6 +383,46 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   return (
     <AudioPlayerContext.Provider value={value}>
       {children}
+      <audio
+        aria-hidden="true"
+        data-room9-audio="true"
+        playsInline
+        preload="metadata"
+        ref={audioRef}
+        onEnded={() => {
+          trackUserInteraction({
+            djId: currentTrack?.djId,
+            interactionType: "complete",
+            metadata: { repeat_one: repeatOne, queue_length: queue.length },
+            scope: musicScope,
+            timestampSeconds: duration || currentTime,
+            workId: currentTrack?.id
+          });
+          if (repeatOne && audioRef.current) {
+            audioRef.current.currentTime = 0;
+            audioRef.current
+              .play()
+              .then(() => setIsPlaying(true))
+              .catch(() => setIsPlaying(false));
+          } else if (hasQueueControls) {
+            value.playNext();
+          } else {
+            setIsPlaying(false);
+          }
+        }}
+        onLoadedMetadata={(event) =>
+          setDuration(
+            Number.isFinite(event.currentTarget.duration)
+              ? event.currentTarget.duration
+              : currentTrack?.durationSeconds ?? 0
+          )
+        }
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+      >
+        <track kind="captions" />
+      </audio>
       {currentTrack && !hidePlayer ? (
         <GlobalPlayer
           bookingHref={bookingMomentHref}
@@ -399,45 +454,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           selectedTimestamp={safeSelectedTimestamp}
           track={currentTrack}
           volume={volume}
-        >
-            <audio
-              ref={audioRef}
-              src={currentTrack.src}
-              onEnded={() => {
-                trackUserInteraction({
-                  djId: currentTrack.djId,
-                  interactionType: "complete",
-                  metadata: { repeat_one: repeatOne, queue_length: queue.length },
-                  scope: musicScope,
-                  timestampSeconds: duration || currentTime,
-                  workId: currentTrack.id
-                });
-                if (repeatOne && audioRef.current) {
-                  audioRef.current.currentTime = 0;
-                  audioRef.current
-                    .play()
-                    .then(() => setIsPlaying(true))
-                    .catch(() => setIsPlaying(false));
-                } else if (hasQueueControls) {
-                  value.playNext();
-                } else {
-                  setIsPlaying(false);
-                }
-              }}
-              onLoadedMetadata={(event) =>
-                setDuration(
-                  Number.isFinite(event.currentTarget.duration)
-                    ? event.currentTarget.duration
-                    : currentTrack?.durationSeconds ?? 0
-                )
-              }
-              onPause={() => setIsPlaying(false)}
-              onPlay={() => setIsPlaying(true)}
-              onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-            >
-              <track kind="captions" />
-            </audio>
-        </GlobalPlayer>
+        />
       ) : null}
     </AudioPlayerContext.Provider>
   );
@@ -505,18 +522,18 @@ export function GlobalPlayer({
     .slice(0, 6);
 
   return (
-    <aside className="fixed inset-x-0 bottom-0 z-50 border-t border-roomBorder bg-[#050505] shadow-[0_-10px_34px_rgba(0,0,0,0.72)]">
-      <div className="mx-auto grid min-h-[76px] max-w-[1920px] gap-3 px-4 py-2 md:px-6 lg:grid-cols-[340px_minmax(360px,1fr)_420px] lg:items-center">
+    <aside className="fixed inset-x-0 bottom-0 z-50 border-t border-roomBorder bg-[#050505] pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_34px_rgba(0,0,0,0.72)]">
+      <div className="mx-auto grid min-h-[132px] max-w-[1920px] gap-2 px-3 py-2 sm:min-h-[112px] md:px-6 lg:min-h-[76px] lg:grid-cols-[340px_minmax(360px,1fr)_420px] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
           <div
-            className="grid h-12 w-12 shrink-0 place-items-center border border-roomBorder bg-inkPanel bg-cover bg-center"
+            className="grid h-11 w-11 shrink-0 place-items-center border border-roomBorder bg-inkPanel bg-cover bg-center sm:h-12 sm:w-12"
             style={{ backgroundImage: `url(${track.coverUrl || "/room9-track-placeholder.svg"})` }}
           />
           <div className="min-w-0">
             <p className={cx("font-mono text-[10px] font-black uppercase", hasSelectedMoment ? "text-acidGreen" : "text-mutedText")}>
               {hasSelectedMoment ? `Selected moment ${formatAudioTime(selectedTimestamp)}` : "Now playing"}
             </p>
-            <h2 className="mt-0.5 truncate font-display text-[15px] uppercase leading-none text-paperWhite">{track.title}</h2>
+            <h2 className="mt-0.5 truncate font-display text-[14px] uppercase leading-none text-paperWhite sm:text-[15px]">{track.title}</h2>
             <p className="mt-1 truncate font-mono text-[10px] uppercase text-mutedText">
               {[track.artist, track.description].filter(Boolean).join(" / ")}
             </p>
@@ -524,7 +541,7 @@ export function GlobalPlayer({
         </div>
 
         <div className="min-w-0">
-          <div className="flex items-center justify-center gap-1">
+          <div className="flex items-center justify-center gap-2 lg:gap-1">
             <PlayerIconButton disabled={!hasQueueControls} label="Previous track" onClick={onPrevious}>
               <PreviousIcon />
             </PlayerIconButton>
@@ -535,7 +552,7 @@ export function GlobalPlayer({
               <NextIcon />
             </PlayerIconButton>
           </div>
-          <div className="mt-2 grid grid-cols-[42px_1fr_42px] items-center gap-3 font-mono text-[10px] uppercase text-mutedText">
+          <div className="mt-2 grid grid-cols-[40px_1fr_40px] items-center gap-2 font-mono text-[10px] uppercase text-mutedText sm:grid-cols-[42px_1fr_42px] sm:gap-3">
             <span>{formatAudioTime(currentTime)}</span>
             <div className="relative h-5">
               <MiniPlayerProgress progressRatio={progressRatio} selectedTimestamp={selectedTimestamp} duration={duration} />
@@ -553,20 +570,20 @@ export function GlobalPlayer({
           </div>
         </div>
 
-        <div className="relative flex items-center justify-end gap-1">
+        <div className="room-mobile-scrollbar relative flex min-w-0 items-center justify-start gap-1 overflow-x-auto pb-1 lg:justify-end lg:overflow-visible lg:pb-0">
           <button
             aria-label="Open queue"
             aria-expanded={queueOpen}
-            className="inline-flex min-h-9 items-center gap-2 border border-roomBorder px-2 font-mono text-[10px] uppercase text-mutedText transition hover:border-paperWhite hover:text-paperWhite"
+            className="inline-flex min-h-9 shrink-0 items-center gap-2 border border-roomBorder px-2 font-mono text-[10px] uppercase text-mutedText transition hover:border-paperWhite hover:text-paperWhite"
             onClick={() => setQueueOpen((current) => !current)}
             type="button"
           >
             <QueueIcon />
-            <span>Queue</span>
+            <span className="hidden sm:inline">Queue</span>
             <span className="text-paperWhite">{queueLength}</span>
           </button>
           {queueOpen ? (
-            <div className="absolute bottom-[calc(100%+10px)] right-0 z-50 w-[360px] border border-strongBorder bg-black p-3 shadow-[0_18px_60px_rgba(0,0,0,0.72)]">
+            <div className="fixed bottom-[calc(9.25rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 max-h-[58vh] overflow-y-auto border border-strongBorder bg-black p-3 shadow-[0_18px_60px_rgba(0,0,0,0.72)] sm:absolute sm:bottom-[calc(100%+10px)] sm:left-auto sm:right-0 sm:w-[360px]">
               <div className="flex items-center justify-between border-b border-roomBorder pb-2">
                 <p className="font-mono text-[10px] font-black uppercase tracking-[0.24em] text-paperWhite">Queue</p>
                 <div className="flex items-center gap-3">
@@ -639,7 +656,7 @@ export function GlobalPlayer({
             </div>
           ) : null}
           {bookingHref ? (
-            <ButtonLink className="whitespace-nowrap px-3" href={bookingHref} size="sm" variant="primary">
+            <ButtonLink className="shrink-0 whitespace-nowrap px-3" href={bookingHref} size="sm" variant="primary">
               {hasSelectedMoment ? "Use as Brief" : `Brief ${formatAudioTime(bookingTime)}`}
             </ButtonLink>
           ) : null}
@@ -721,7 +738,8 @@ function PlayerIconButton({
     <button
       aria-label={label}
       className={cx(
-        "grid h-8 w-8 place-items-center border transition disabled:cursor-not-allowed disabled:opacity-35",
+        "grid h-9 w-9 shrink-0 place-items-center border transition disabled:cursor-not-allowed disabled:opacity-35 sm:h-8 sm:w-8",
+        tone === "play" && "h-10 w-10 sm:h-9 sm:w-9",
         tone === "play" && "border-paperWhite bg-paperWhite text-voidBlack hover:border-acidGreen hover:bg-acidGreen",
         tone === "plain" &&
           (active

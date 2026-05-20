@@ -33,7 +33,7 @@ export function Room9Waveform({
   return (
     <div
       className={cx(
-        "relative flex h-10 items-end gap-[3px] border-b border-roomBorder bg-voidBlack px-2 pb-1",
+        "relative flex h-10 max-w-full items-end gap-[3px] overflow-hidden border-b border-roomBorder bg-voidBlack px-2 pb-1",
         reactive && active && "room-waveform-reactive",
         className
       )}
