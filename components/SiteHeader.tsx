@@ -182,17 +182,17 @@ export function SiteHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-30 border-b border-roomBorder bg-voidBlack/95 backdrop-blur">
-      <div className="relative mx-auto grid min-h-12 w-full max-w-[1920px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-1.5 md:grid-cols-[96px_minmax(160px,360px)_1fr_auto] md:gap-3 md:px-5">
+    <header className="sticky top-0 z-30 isolate border-b border-roomBorder bg-voidBlack/95 backdrop-blur">
+      <div className="relative mx-auto grid min-h-12 w-full max-w-[1920px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-1.5 md:grid-cols-[96px_minmax(180px,340px)_1fr_auto] md:gap-3 md:px-5 xl:grid-cols-[112px_minmax(220px,420px)_minmax(320px,1fr)_auto]">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 font-display text-base uppercase leading-none text-paperWhite md:text-lg"
+          className="relative z-10 flex shrink-0 items-center gap-2 font-display text-base uppercase leading-none text-paperWhite md:text-lg"
         >
           ROOM_9
         </Link>
 
         <form
-          className="hidden min-h-9 min-w-0 items-center border-l border-r border-roomBorder bg-black md:flex"
+          className="relative z-10 hidden min-h-9 min-w-0 items-center border-l border-r border-roomBorder bg-black md:flex"
           onSubmit={handleGlobalSearch}
         >
           <input
@@ -207,11 +207,11 @@ export function SiteHeader() {
           </button>
         </form>
 
-        <nav className="hidden min-w-0 items-center justify-center gap-6 lg:absolute lg:left-1/2 lg:top-1/2 lg:flex lg:-translate-x-1/2 lg:-translate-y-1/2 xl:gap-8">
+        <nav className="relative z-20 hidden min-w-0 items-center justify-center gap-6 lg:flex xl:gap-8">
           {navLinks.map(([label, href]) => (
             <Link
               key={label}
-              className={`${navClass} ${
+              className={`${navClass} relative inline-flex min-h-9 items-center px-1 ${
                 (href === "/streams" && isStreams) ||
                 (href === "/events" && isEvents) ||
                 (href === "/library" && isLibrary) ||
@@ -226,7 +226,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="relative flex items-center justify-end gap-2">
+        <div className="relative z-30 flex items-center justify-end gap-2">
           <button
             aria-expanded={mobileMenuOpen}
             aria-label="Open navigation menu"

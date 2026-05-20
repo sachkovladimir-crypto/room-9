@@ -348,6 +348,7 @@ label {
   content: "";
   height: 100%;
   left: -140%;
+  pointer-events: none;
   position: absolute;
   top: 0;
   transform: skewX(-18deg);
