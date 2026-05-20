@@ -29,6 +29,7 @@ const fallbackEvents: EventPost[] = eventRows.map((event, index) => ({
   poster_url: null,
   created_at: "2026-01-01T00:00:00.000Z"
 }));
+const sampleEventTitles = new Set(["VOID RESONANCE", "INDUSTRIAL DECAY", "SYNAPTIC SHIFT"]);
 
 export default function EventsPage() {
   const [events, setEvents] = useState<EventPost[]>(fallbackEvents);
@@ -78,6 +79,7 @@ export default function EventsPage() {
 
     return events.filter((event) => event.event_type === filter);
   }, [events, filter]);
+  const isDemoProgramme = events.some((event) => event.id.startsWith("fallback-") || sampleEventTitles.has(event.title.toUpperCase()));
 
   return (
     <main className="room-page">
@@ -101,6 +103,11 @@ export default function EventsPage() {
               lineup slots, streams and booking cases.
             </p>
           </div>
+          {isDemoProgramme ? (
+            <p className="mt-4 inline-flex border border-roomBorder bg-panelBlack px-3 py-2 font-mono text-[10px] uppercase text-mutedText">
+              Prototype event programme. Real organizer events appear here after Event Desk publishing.
+            </p>
+          ) : null}
           <div className="mt-6 flex flex-wrap gap-2 border-t border-roomBorder pt-4">
             {filters.map((item) => (
               <button

@@ -183,7 +183,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-roomBorder bg-voidBlack/95 backdrop-blur">
-      <div className="mx-auto grid min-h-14 w-full max-w-[1920px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2 md:grid-cols-[112px_1fr_auto_auto] md:gap-3 md:px-6">
+      <div className="relative mx-auto grid min-h-12 w-full max-w-[1920px] grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-1.5 md:grid-cols-[96px_minmax(160px,360px)_1fr_auto] md:gap-3 md:px-5">
         <Link
           href="/"
           className="flex shrink-0 items-center gap-2 font-display text-base uppercase leading-none text-paperWhite md:text-lg"
@@ -192,22 +192,22 @@ export function SiteHeader() {
         </Link>
 
         <form
-          className="hidden min-h-10 min-w-0 items-center border-l border-r border-roomBorder bg-black md:flex"
+          className="hidden min-h-9 min-w-0 items-center border-l border-r border-roomBorder bg-black md:flex"
           onSubmit={handleGlobalSearch}
         >
           <input
             aria-label="Global search"
-            className="h-10 min-w-0 flex-1 bg-transparent px-4 font-mono text-[10px] uppercase text-bone outline-none placeholder:text-neutral-700"
+            className="h-9 min-w-0 flex-1 bg-transparent px-3 font-mono text-[10px] uppercase text-bone outline-none placeholder:text-neutral-700"
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search tracks, DJs, events, streams..."
             value={search}
           />
-          <button className="h-10 border-l border-roomBorder px-4 font-mono text-[10px] font-black uppercase text-mutedText hover:bg-acidGreen hover:text-black" type="submit">
+          <button className="h-9 border-l border-roomBorder px-3 font-mono text-[10px] font-black uppercase text-mutedText hover:bg-acidGreen hover:text-black" type="submit">
             Search
           </button>
         </form>
 
-        <nav className="hidden items-center gap-5 lg:flex">
+        <nav className="hidden min-w-0 items-center justify-center gap-6 lg:absolute lg:left-1/2 lg:top-1/2 lg:flex lg:-translate-x-1/2 lg:-translate-y-1/2 xl:gap-8">
           {navLinks.map(([label, href]) => (
             <Link
               key={label}
@@ -226,19 +226,16 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center justify-end gap-2 md:flex">
+        <div className="relative flex items-center justify-end gap-2">
           <button
             aria-expanded={mobileMenuOpen}
             aria-label="Open navigation menu"
-            className="grid h-9 w-9 place-items-center border border-roomBorder bg-panelBlack font-mono text-[10px] font-black uppercase text-paperWhite transition hover:border-paperWhite lg:hidden"
+            className="hidden h-9 w-9 place-items-center border border-roomBorder bg-panelBlack font-mono text-[10px] font-black uppercase text-paperWhite transition hover:border-paperWhite md:grid lg:hidden"
             onClick={() => setMobileMenuOpen((current) => !current)}
             type="button"
           >
             <MenuIcon />
           </button>
-        </div>
-
-        <div className="relative flex items-center justify-end gap-2">
           <button
             aria-expanded={mobileMenuOpen}
             aria-label="Open navigation menu"

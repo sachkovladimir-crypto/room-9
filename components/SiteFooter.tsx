@@ -24,13 +24,13 @@ export function SiteFooter() {
   }
 
   return (
-    <footer className="border-t border-roomBorder bg-voidBlack px-5 py-8 text-paperWhite md:px-6">
-      <div className="mx-auto grid max-w-[1680px] gap-8 md:grid-cols-[1fr_auto_auto]">
+    <footer className="border-t border-roomBorder bg-voidBlack px-5 py-5 text-paperWhite md:px-6">
+      <div className="mx-auto grid max-w-[1680px] gap-5 md:grid-cols-[1fr_auto_auto]">
         <div>
-          <Link className="font-display text-2xl uppercase leading-none" href="/">
+          <Link className="font-display text-xl uppercase leading-none" href="/">
             ROOM_9
           </Link>
-          <p className="mt-3 max-w-md text-sm leading-6 text-mutedText">
+          <p className="mt-2 max-w-md text-xs leading-5 text-mutedText">
             Music-first discovery, saved sound references, live streams and professional booking workflows.
           </p>
         </div>

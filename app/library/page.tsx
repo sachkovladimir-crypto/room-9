@@ -40,6 +40,7 @@ import {
   getSupabase,
   hasSupabaseConfig,
   isMissingAuthSession,
+  isRoom9DemoMode,
   logSupabaseError
 } from "@/lib/supabase";
 import { loadRoleAccess } from "@/lib/roleAccess";
@@ -123,8 +124,8 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
   const [activeTab, setActiveTab] = useState<VaultTab>(getVaultTabForMode(initialMode ?? "overview"));
   const [activeMode, setActiveMode] = useState<VaultMode>(initialMode ?? "overview");
   const [hiddenModules, setHiddenModules] = useState<Record<string, boolean>>({});
-  const [bootProgress, setBootProgress] = useState(100);
-  const [bootComplete, setBootComplete] = useState(true);
+  const [bootProgress, setBootProgress] = useState(0);
+  const [bootComplete, setBootComplete] = useState(false);
   const [query, setQuery] = useState("");
   const [playlistName, setPlaylistName] = useState("");
   const [playlistEditName, setPlaylistEditName] = useState("");
@@ -393,7 +394,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
         setSelectedPlaylistId(nextPlaylists[0]?.id ?? null);
 
         const ids = collectVaultWorkIds(nextFavorites, nextHistory, nextPlaylists, nextMoments);
-        const demoLoadedWorks = demoWorks.filter((work) => ids.includes(work.id));
+        const demoLoadedWorks = isRoom9DemoMode() ? demoWorks.filter((work) => ids.includes(work.id)) : [];
         const supabaseIds = ids.filter(isUuidLike).slice(0, 160);
 
         let loadedWorks = demoLoadedWorks;
@@ -407,7 +408,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
             logSupabaseError("Sound Vault works load failed", workError);
             setError(formatSupabaseError(workError, "Could not load saved music."));
             setWorks(demoLoadedWorks);
-            setDjLookup(getDemoDjLookup());
+            setDjLookup(isRoom9DemoMode() ? getDemoDjLookup() : {});
             return;
           }
 
@@ -422,7 +423,7 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
 
         const djIds = Array.from(new Set(loadedWorks.map((work) => work.dj_id).filter(Boolean)));
         const realDjIds = djIds.filter(isUuidLike).slice(0, 80);
-        const nextDjLookup = getDemoDjLookup();
+        const nextDjLookup = isRoom9DemoMode() ? getDemoDjLookup() : {};
         if (loadedDjProfile) {
           nextDjLookup[loadedDjProfile.id] = loadedDjProfile;
         }

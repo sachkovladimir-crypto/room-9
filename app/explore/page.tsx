@@ -11,10 +11,8 @@ import { SignalInsightCard } from "@/components/SignalInsightCard";
 import { TrackActionMenu } from "@/components/TrackActionMenu";
 import { BookmarkGlyph, ExternalGlyph, PauseGlyph, PlayGlyph } from "@/components/room9-icons";
 import { Button, ButtonLink, Input, Panel, Select, cx } from "@/components/room9-ui";
-import { demoDjProfiles, demoWorks, getDemoDjLookup } from "@/lib/demoContent";
 import { formatPrice } from "@/lib/format";
 import { cssImageUrl, getDjAvatarUrl, getReleaseCoverUrl, getWorkCoverUrl } from "@/lib/media";
-import { rosterArtists } from "@/lib/room9Design";
 import {
   readVaultSavedTrackIds,
   toggleVaultSavedTrackId
@@ -88,8 +86,8 @@ export default function ExplorePage() {
 function ExplorePageContent() {
   const searchParams = useSearchParams();
   const [djs, setDjs] = useState<DjProfile[]>([]);
-  const [soundWorks, setSoundWorks] = useState<Work[]>(demoWorks);
-  const [soundDjLookup, setSoundDjLookup] = useState<Record<string, DjProfile>>(getDemoDjLookup());
+  const [soundWorks, setSoundWorks] = useState<Work[]>([]);
+  const [soundDjLookup, setSoundDjLookup] = useState<Record<string, DjProfile>>({});
   const [featureLookup, setFeatureLookup] = useState<Record<string, TrackAudioFeature>>({});
   const [releases, setReleases] = useState<Release[]>([]);
   const [releaseDjLookup, setReleaseDjLookup] = useState<Record<string, DjProfile>>({});
@@ -123,6 +121,9 @@ function ExplorePageContent() {
 
   const loadDjs = useCallback(async (pageToLoad = 0, append = false) => {
     if (!hasSupabaseConfig()) {
+      setDjs([]);
+      setHasMore(false);
+      setIsLoading(false);
       return;
     }
 
@@ -146,18 +147,16 @@ function ExplorePageContent() {
 
       if (loadError) {
         logSupabaseError("Explore DJs load failed", loadError);
+        setError(formatSupabaseError(loadError, "Could not load DJs."));
         if (pageToLoad === 0 && !append) {
-          setDjs(demoDjProfiles);
-          setHasMore(false);
-        } else {
-          setError(formatSupabaseError(loadError, "Could not load DJs."));
+          setDjs([]);
         }
+        setHasMore(false);
       } else {
         const loadedDjs = (data as DjProfile[]) ?? [];
-        const nextDjs = loadedDjs.length === 0 && pageToLoad === 0 ? demoDjProfiles : loadedDjs;
-        setDjs((current) => (append ? [...current, ...loadedDjs] : nextDjs));
+        setDjs((current) => (append ? [...current, ...loadedDjs] : loadedDjs));
         setPage(pageToLoad);
-        setHasMore(loadedDjs.length === EXPLORE_PAGE_SIZE && nextDjs === loadedDjs);
+        setHasMore(loadedDjs.length === EXPLORE_PAGE_SIZE);
       }
     } catch (caughtError) {
       logSupabaseError("Explore DJs unexpected load failure", caughtError);
@@ -173,6 +172,9 @@ function ExplorePageContent() {
 
   const loadSoundQueue = useCallback(async () => {
     if (!hasSupabaseConfig()) {
+      setSoundWorks([]);
+      setSoundDjLookup({});
+      setIsLoadingSounds(false);
       return;
     }
 
@@ -191,16 +193,16 @@ function ExplorePageContent() {
 
       if (worksError) {
         logSupabaseError("Explore sound queue load failed", worksError);
-        setSoundWorks(demoWorks);
-        setSoundDjLookup(getDemoDjLookup());
-        setSoundError("");
+        setSoundWorks([]);
+        setSoundDjLookup({});
+        setSoundError(formatSupabaseError(worksError, "Could not load public sounds."));
         return;
       }
 
       const loadedWorks = ((worksData as Work[]) ?? []).filter((work) => work.link);
       if (loadedWorks.length === 0) {
-        setSoundWorks(demoWorks);
-        setSoundDjLookup(getDemoDjLookup());
+        setSoundWorks([]);
+        setSoundDjLookup({});
         return;
       }
 
@@ -569,7 +571,7 @@ function ExplorePageContent() {
         .filter(Boolean)
     );
     const trackGenres = soundWorks.map((work) => work.genre).filter(Boolean) as string[];
-    return ["All", ...Array.from(new Set([...trackGenres, ...liveGenres, ...rosterArtists.map((artist) => artist.genre)]))];
+    return ["All", ...Array.from(new Set([...trackGenres, ...liveGenres]))];
   }, [djs, soundWorks]);
 
   const locationOptions = useMemo(() => {
@@ -601,43 +603,10 @@ function ExplorePageContent() {
         price: formatPrice(dj.price),
         status: dj.is_available ? "Available" : "Offline",
         avatarUrl: getDjAvatarUrl(dj),
-        imagePosition: rosterArtists[index % rosterArtists.length].imagePosition
+        imagePosition: `${50 + (index % 3) * 8}% 50%`
       }));
 
-      if (
-        hasActiveFilters(
-          query,
-          genreFilter,
-          locationFilter,
-          bpmFilter,
-          feeFilter,
-          availabilityFilter,
-          liveReadyOnly,
-          verifiedOnly
-        )
-      ) {
-        return liveCards;
-      }
-
-      if (liveCards.length >= 4) {
-        return liveCards;
-      }
-
-      const referenceFill = rosterArtists.slice(liveCards.length).map((artist) => ({
-        kind: "reference" as const,
-        id: artist.name,
-        name: artist.name,
-        location: artist.location,
-        cityCode: artist.cityCode,
-        genre: artist.genre,
-        bpm: artist.bpm,
-        price: "Fee on request",
-        status: artist.status,
-        avatarUrl: null,
-        imagePosition: artist.imagePosition
-      }));
-
-      return [...liveCards, ...referenceFill].slice(0, 4);
+      return liveCards.slice(0, 4);
     }
 
     if (
@@ -655,19 +624,7 @@ function ExplorePageContent() {
       return [];
     }
 
-    return rosterArtists.map((artist) => ({
-      kind: "reference",
-      id: artist.name,
-      name: artist.name,
-      location: artist.location,
-      cityCode: artist.cityCode,
-      genre: artist.genre,
-      bpm: artist.bpm,
-      price: "Fee on request",
-      status: artist.status,
-      avatarUrl: null,
-      imagePosition: artist.imagePosition
-    }));
+    return [];
   }, [
     availabilityFilter,
     bpmFilter,

@@ -14,6 +14,8 @@ import {
 } from "@/lib/supabase";
 import type { LiveStream } from "@/lib/types";
 
+const sampleStreamKeys = new Set(["exhale / tresor berlin", "awakenings festival", "time warp de"]);
+
 export default function StreamsPage() {
   const [streams, setStreams] = useState<LiveStream[]>(fallbackStreams);
   const [selectedId, setSelectedId] = useState(fallbackStreams[0].id);
@@ -91,6 +93,7 @@ export default function StreamsPage() {
   }, [streams, genre, location, status]);
 
   const selected = streams.find((stream) => stream.id === selectedId) ?? streams[0];
+  const isDemoStreams = streams.some((stream) => stream.id.startsWith("fallback-") || sampleStreamKeys.has(stream.title.toLowerCase()));
   const genres = ["All", ...Array.from(new Set(streams.map((stream) => stream.genre).filter(Boolean)))] as string[];
   const locations = [
     "Global",
@@ -112,6 +115,11 @@ export default function StreamsPage() {
               Live and archived DJ sets for listening context. Watch the current room, save upcoming
               sessions, and open archive sets without leaving the ROOM_9 system.
             </p>
+            {isDemoStreams ? (
+              <p className="mt-4 inline-flex border border-roomBorder bg-panelBlack px-3 py-2 font-mono text-[10px] uppercase text-mutedText">
+                Prototype stream programme. Scheduled live streams replace this demo feed when published.
+              </p>
+            ) : null}
           </div>
           <Link className="room-outline-button" href="/dashboard">
             Workspace
