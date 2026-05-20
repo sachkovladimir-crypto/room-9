@@ -63,30 +63,34 @@ The goal is a stable diploma demo: DJs create profiles and upload audio, organiz
 
    ```text
    Site URL:
-   http://localhost:3001
+   https://room-9.room-9.workers.dev
 
    Additional Redirect URLs:
    http://localhost:3001/auth/callback
    https://room-9.room-9.workers.dev/auth/callback
    ```
 
-   If you use a different Cloudflare/custom domain, add its `/auth/callback` URL too. For an emergency live demo you can disable email confirmation, but the app now supports the production flow through `/auth/callback`.
+   If you use a different Cloudflare/custom domain, add its `/auth/callback` URL too. For local-only testing you can temporarily set the Site URL to `http://localhost:3001`, but the deployed site should be the production Site URL. For an emergency live demo you can disable email confirmation, but the app now supports the production flow through `/auth/callback`.
 
-10. Install dependencies:
+   Password recovery also uses `/auth/callback`: ROOM_9 sends users through the callback and then into `/update-password`.
+
+10. If you enable custom SMTP in Supabase Auth, keep SMTP credentials only in the Supabase Dashboard. Do not add SMTP passwords, Gmail app passwords, or provider secrets to `.env.local`, GitHub Secrets, or this repository. Gmail SMTP is acceptable for a diploma demo, but a transactional provider is safer for a real launch.
+
+11. Install dependencies:
 
    ```bash
    npm install
    ```
 
-11. Restart the dev server after any `.env.local` change:
+12. Restart the dev server after any `.env.local` change:
 
    ```bash
    npm run dev
    ```
 
-12. Open `http://localhost:3001` and test the demo flow below. The local dev script is pinned to port `3001` to avoid stale `3000` sessions during demos.
+13. Open `http://localhost:3001` and test the demo flow below. The local dev script is pinned to port `3001` to avoid stale `3000` sessions during demos.
 
-13. Deploy to Cloudflare Workers using `docs/cloudflare-deployment.md`. The recommended production path is GitHub -> GitHub Actions -> Cloudflare Workers.
+14. Deploy to Cloudflare Workers using `docs/cloudflare-deployment.md`. The recommended production path is GitHub -> GitHub Actions -> Cloudflare Workers.
 
 ## Supabase Troubleshooting
 
