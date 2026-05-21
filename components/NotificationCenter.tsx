@@ -68,6 +68,23 @@ export function NotificationCenter({ className }: { className?: string }) {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!hasSupabaseConfig()) {
       return;
     }
@@ -169,6 +186,7 @@ export function NotificationCenter({ className }: { className?: string }) {
   return (
     <div className={cx("relative", className)}>
       <button
+        aria-expanded={open}
         aria-label="Open notification center"
         className={cx(
           "relative grid h-9 w-9 place-items-center border border-roomBorder bg-panelBlack text-paperWhite transition hover:border-acidGreen hover:text-acidGreen",
@@ -182,12 +200,12 @@ export function NotificationCenter({ className }: { className?: string }) {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-[360px] border border-strongBorder bg-black p-room-2 shadow-[0_18px_70px_rgba(0,0,0,0.65)]">
+        <div className="fixed right-3 top-14 z-[90] w-[min(380px,calc(100vw-24px))] max-h-[min(620px,calc(100vh-72px))] overflow-hidden border border-strongBorder bg-black p-room-2 shadow-[0_18px_70px_rgba(0,0,0,0.78)]">
           <div className="flex items-center justify-between border-b border-roomBorder pb-room-2">
-            <p className="font-display text-lg uppercase text-paperWhite">Notifications</p>
+            <p className="min-w-0 truncate font-display text-sm uppercase text-paperWhite sm:text-base">Notifications</p>
             <div className="flex items-center gap-room-1">
               <button
-                className="font-mono text-[10px] uppercase text-mutedText underline decoration-roomBorder underline-offset-4 transition hover:text-acidGreen"
+                className="shrink-0 font-mono text-[9px] uppercase text-mutedText underline decoration-roomBorder underline-offset-4 transition hover:text-acidGreen disabled:opacity-40"
                 disabled={unread === 0}
                 onClick={markAllRead}
                 type="button"
@@ -197,22 +215,22 @@ export function NotificationCenter({ className }: { className?: string }) {
               <StatusBadge status={unread > 0 ? "live" : "draft"}>{unread} unread</StatusBadge>
             </div>
           </div>
-          <div className="mt-room-2 max-h-[420px] space-y-room-1 overflow-y-auto">
+          <div className="mt-room-2 max-h-[min(500px,calc(100vh-156px))] space-y-room-1 overflow-y-auto pr-1">
             {notifications.map((notification) => (
               <article
                 className={cx(
-                  "border p-room-2",
+                  "cursor-pointer border p-room-2 transition hover:border-strongBorder",
                   notification.is_read ? "border-roomBorder bg-panelBlack" : "border-acidGreen bg-[#111a02]"
                 )}
                 key={notification.id}
                 onClick={() => !notification.is_read && markOneRead(notification.id)}
               >
-                <div className="flex items-center justify-between gap-room-2">
-                  <p className="font-mono text-[10px] uppercase text-mutedText">{notification.type || "system"}</p>
-                  <span className={notification.is_read ? "text-mutedText" : "text-acidGreen"}>{notification.is_read ? "read" : "new"}</span>
+                <div className="flex min-w-0 items-center justify-between gap-room-2">
+                  <p className="min-w-0 truncate font-mono text-[9px] uppercase text-mutedText">{notification.type || "system"}</p>
+                  <span className={cx("shrink-0 font-mono text-[9px] uppercase", notification.is_read ? "text-mutedText" : "text-acidGreen")}>{notification.is_read ? "read" : "new"}</span>
                 </div>
-                <h3 className="mt-1 font-display text-base uppercase text-paperWhite">{notification.title || "ROOM_9 update"}</h3>
-                <p className="mt-1 text-xs leading-5 text-mutedText">{notification.body || "No details."}</p>
+                <h3 className="mt-1 line-clamp-2 font-display text-sm uppercase leading-tight text-paperWhite">{notification.title || "ROOM_9 update"}</h3>
+                <p className="mt-1 line-clamp-3 text-xs leading-5 text-mutedText">{notification.body || "No details."}</p>
               </article>
             ))}
           </div>

@@ -79,7 +79,7 @@ export function WorkspaceSidebar({
   const unlockSummary = getWorkspaceUnlockSummary(role, safeReadiness);
 
   return (
-    <aside className="flex min-h-[96px] min-w-0 flex-wrap items-center gap-room-3 overflow-x-hidden border-b border-roomBorder bg-[#090909] px-room-3 py-room-3 lg:sticky lg:top-0 lg:min-h-screen lg:w-[220px] lg:flex-col lg:items-stretch lg:overflow-visible lg:border-b-0 lg:border-r">
+    <aside className="flex min-h-[96px] min-w-0 flex-wrap items-center gap-room-3 overflow-x-hidden border-b border-roomBorder bg-[#090909] px-room-3 py-room-3 lg:sticky lg:top-0 lg:min-h-screen lg:w-[240px] lg:flex-col lg:items-stretch lg:overflow-visible lg:border-b-0 lg:border-r">
       <div className="flex min-w-0 flex-1 flex-col lg:w-full">
         <Link className="block font-display text-2xl uppercase leading-none text-paperWhite" href="/">
           ROOM_9
@@ -157,38 +157,38 @@ export function WorkspaceSidebar({
         </div>
 
         <div className="mt-room-5 hidden w-full min-w-0 border border-roomBorder bg-panelBlack p-room-2 lg:block">
-          <div className="flex min-w-0 items-center gap-room-2">
-            <div className="grid h-9 w-9 shrink-0 place-items-center border border-strongBorder bg-voidBlack font-mono text-[10px] font-black uppercase text-acidGreen">
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-start justify-between gap-room-2">
-                <div className="min-w-0">
-                  <p className="truncate font-display text-xs uppercase leading-none text-paperWhite" title={identity}>
-                    {identity}
-                  </p>
-                  <p className="mt-1 truncate font-mono text-[8px] uppercase text-successGreen">{roleLabel}</p>
-                </div>
-                <NotificationCenter className="shrink-0" />
+          <div className="grid min-w-0 gap-room-2">
+            <div className="flex min-w-0 items-center gap-room-2">
+              <div className="grid h-9 w-9 shrink-0 place-items-center border border-strongBorder bg-voidBlack font-mono text-[10px] font-black uppercase text-acidGreen">
+                {initials}
               </div>
-              <div className="mt-room-2 flex items-center justify-between gap-room-2">
-                <span className="font-mono text-[8px] uppercase text-mutedText">Profile</span>
-                <span className="font-mono text-[8px] uppercase text-paperWhite">{safeReadiness}% ready</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-display text-xs uppercase leading-none text-paperWhite" title={identity}>
+                  {identity}
+                </p>
+                <p className="mt-1 truncate font-mono text-[8px] uppercase text-successGreen">{roleLabel}</p>
+              </div>
+              <NotificationCenter className="shrink-0" />
+            </div>
+            <div>
+              <div className="flex min-w-0 items-center justify-between gap-room-2">
+                <span className="shrink-0 font-mono text-[8px] uppercase text-mutedText">Profile</span>
+                <span className="shrink-0 font-mono text-[8px] uppercase text-paperWhite">{safeReadiness}% ready</span>
               </div>
               <div className="mt-1 h-1 border border-roomBorder bg-voidBlack">
                 <div className="h-full bg-acidGreen" style={{ width: `${safeReadiness}%` }} />
               </div>
-              {onLogout ? (
-                <button
-                  className="mt-room-2 flex h-8 w-full items-center justify-between border border-roomBorder px-room-2 font-mono text-[9px] uppercase text-mutedText transition hover:border-paperWhite hover:text-paperWhite"
-                  onClick={onLogout}
-                  type="button"
-                >
-                  Exit workspace
-                  <span aria-hidden="true">↗</span>
-                </button>
-              ) : null}
             </div>
+            {onLogout ? (
+              <button
+                className="mt-room-2 flex h-8 w-full items-center justify-between border border-roomBorder px-room-2 font-mono text-[9px] uppercase text-mutedText transition hover:border-paperWhite hover:text-paperWhite"
+                onClick={onLogout}
+                type="button"
+              >
+                Exit workspace
+                <span aria-hidden="true">↗</span>
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -312,7 +312,7 @@ export function WorkspacePageFrame({
   }
 
   return (
-    <main className="room-page min-h-screen lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+    <main className="room-page min-h-screen lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
       <WorkspaceSidebar
         active={active}
         email={email}
