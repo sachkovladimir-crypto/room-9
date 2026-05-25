@@ -146,6 +146,10 @@ export type TrackAudioFeature = {
   waveform_profile: Record<string, unknown> | null;
   source: "metadata" | "audio-analysis" | "manual" | "ml" | string | null;
   confidence: number | null;
+  analyzed_at: string | null;
+  analysis_status: "pending" | "analyzing" | "complete" | "failed" | string | null;
+  analysis_error: string | null;
+  analysis_requested_at: string | null;
   created_at: string;
   updated_at: string | null;
 };

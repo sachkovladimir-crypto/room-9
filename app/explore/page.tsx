@@ -21,6 +21,7 @@ import {
   createSignalIntentFromFilters,
   formatSignalScore,
   scoreTrackSignal,
+  type SignalAudienceMode,
   type TrackSignalScore
 } from "@/lib/signalEngine";
 import {
@@ -93,6 +94,7 @@ function ExplorePageContent() {
   const [releaseDjLookup, setReleaseDjLookup] = useState<Record<string, DjProfile>>({});
   const [releaseTrackCounts, setReleaseTrackCounts] = useState<Record<string, number>>({});
   const [searchMode, setSearchMode] = useState<ExploreSearchMode>("sounds");
+  const [signalMode, setSignalMode] = useState<SignalAudienceMode>("listener");
   const [query, setQuery] = useState("");
   const [genreFilter, setGenreFilter] = useState("All");
   const [locationFilter, setLocationFilter] = useState("All");
@@ -422,10 +424,11 @@ function ExplorePageContent() {
         city: locationFilter,
         feeBand: feeFilter,
         genre: genreFilter,
+        mode: signalMode,
         roomTypes: roomTypeFilters,
         savedTrackIds
       }),
-    [bpmFilter, feeFilter, genreFilter, locationFilter, roomTypeFilters, savedTrackIds]
+    [bpmFilter, feeFilter, genreFilter, locationFilter, roomTypeFilters, savedTrackIds, signalMode]
   );
   const signalIntent = useMemo(
     () => blendUserSoundProfileWithIntent(soundProfile, filterSignalIntent),
@@ -992,16 +995,35 @@ function ExplorePageContent() {
                     {soundQueue.length} artists match your sound profile
                   </p>
                 </div>
-                <p className="room-tiny">
-                  Sort by: <span className="text-paperWhite">{soundProfile ? "Personal Signal" : "Signal Engine"}</span>
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="room-tiny text-mutedText">Engine</span>
+                  {(["listener", "organizer"] as const).map((mode) => (
+                    <button
+                      className={cx(
+                        "border px-3 py-2 font-mono text-[10px] uppercase transition",
+                        signalMode === mode
+                          ? "border-acidGreen bg-acidGreen text-black"
+                          : "border-roomBorder bg-black text-mutedText hover:border-paperWhite hover:text-paperWhite"
+                      )}
+                      key={mode}
+                      onClick={() => setSignalMode(mode)}
+                      type="button"
+                    >
+                      {mode === "listener" ? "For listeners" : "For organizers"}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 border border-roomBorder bg-panelBlack px-3 py-2">
                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-mutedText">
-                  {soundProfile ? "Sound Profile active" : "Sound Profile"}
+                  {signalMode === "listener" ? "Listener Discovery" : "Organizer Booking Fit"}
                 </span>
                 <span className="font-mono text-[10px] uppercase text-acidGreen">
-                  {soundProfile ? soundProfileHeadline : "Save tracks and moments to personalize discovery"}
+                  {signalMode === "listener"
+                    ? soundProfile
+                      ? soundProfileHeadline
+                      : "Save tracks and moments to personalize discovery"
+                    : "Ranks music by room, slot, artist readiness and booking context"}
                 </span>
               </div>
               <div className="mt-4 hidden border-y border-roomBorder bg-black px-3 py-3 font-mono text-[10px] uppercase text-mutedText lg:grid lg:grid-cols-[48px_1fr_120px_84px_86px_190px]">
@@ -1103,7 +1125,8 @@ function ExplorePageContent() {
                         className="inline-flex min-h-7 items-center border border-roomBorder bg-panelBlack px-2 font-mono text-[10px] uppercase text-acidGreen"
                         title={signal.reasons.join(" / ")}
                       >
-                        {formatSignalScore(signal.soundMatch)}
+                        {formatSignalScore(signal.sortScore)}
+                        <span className="ml-1 text-mutedText">{signal.primaryLabel}</span>
                       </span>
                       <button
                         className="inline-flex items-center gap-2 font-mono text-[10px] uppercase text-mutedText hover:text-acidGreen"

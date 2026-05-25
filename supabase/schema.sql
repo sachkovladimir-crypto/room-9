@@ -452,6 +452,10 @@ create table if not exists public.track_audio_features (
   waveform_profile jsonb default '{}'::jsonb,
   source text default 'metadata',
   confidence numeric default 0.48,
+  analyzed_at timestamp with time zone,
+  analysis_status text default 'pending',
+  analysis_error text,
+  analysis_requested_at timestamp with time zone,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
@@ -470,9 +474,13 @@ alter table public.track_audio_features
   add column if not exists waveform_profile jsonb default '{}'::jsonb,
   add column if not exists source text default 'metadata',
   add column if not exists confidence numeric default 0.48,
+  add column if not exists analyzed_at timestamp with time zone,
+  add column if not exists analysis_status text default 'pending',
+  add column if not exists analysis_error text,
+  add column if not exists analysis_requested_at timestamp with time zone,
   add column if not exists updated_at timestamp with time zone default now();
 
-comment on table public.track_audio_features is 'Normalized music descriptors for the deterministic ROOM_9 Signal Engine. MVP rows are metadata-derived; V3 can replace source with audio-analysis or ML embeddings.';
+comment on table public.track_audio_features is 'Normalized music descriptors for the deterministic ROOM_9 Signal Engine. Server analysis can update BPM, waveform profile, Sound DNA, and analyzed_at after upload or from Music Lab.';
 
 -- Phase 8: Aggregated user taste profile for faster, explainable recommendations.
 -- This is user-owned derived data. It can be rebuilt from saved tracks, playlists, moments and interactions.

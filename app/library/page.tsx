@@ -17,6 +17,7 @@ import {
 } from "@/components/room9-ui";
 import { demoWorks, getDemoDjLookup } from "@/lib/demoContent";
 import { cssImageUrl, getDjAvatarUrl, getWorkCoverUrl } from "@/lib/media";
+import { requestTrackAudioAnalysis } from "@/lib/audioAnalysisClient";
 import {
   VAULT_FAVORITES_EVENT,
   VAULT_MOMENTS_EVENT,
@@ -917,12 +918,35 @@ export default function LibraryPage({ initialMode }: { initialMode?: VaultMode }
         return;
       }
 
-      setWorks((current) => mergeWorks([data as Work, ...current]));
+      const createdWork = data as Work;
+      let analyzedWork = createdWork;
+      try {
+        const analysisResult = await requestTrackAudioAnalysis({
+          audioUrl,
+          metadata: {
+            artist: djProfile.stage_name,
+            genre: uploadForm.genre,
+            title: uploadForm.title
+          },
+          workId: createdWork.id
+        });
+        analyzedWork = {
+          ...createdWork,
+          bpm: analysisResult.work.bpm ?? createdWork.bpm,
+          duration_seconds: analysisResult.work.duration_seconds ?? createdWork.duration_seconds,
+          waveform_analyzed_at: analysisResult.work.waveform_analyzed_at ?? createdWork.waveform_analyzed_at,
+          waveform_peaks: analysisResult.work.waveform_peaks ?? createdWork.waveform_peaks
+        };
+      } catch (analysisError) {
+        logSupabaseError("Sound Vault upload audio analysis failed", analysisError);
+      }
+
+      setWorks((current) => mergeWorks([analyzedWork, ...current]));
       setUploadForm(emptyUploadForm);
       setTrackFile(null);
       setCoverFile(null);
       setActiveTab("saved-moments");
-      setNotice("Track uploaded and added to Sound Vault.");
+      setNotice(analyzedWork.waveform_analyzed_at ? "Track uploaded and analyzed for Music Lab." : "Track uploaded. Run Music Lab analysis to complete BPM and Sound DNA.");
     } catch (caughtError) {
       logSupabaseError("Sound Vault upload unexpected failure", caughtError);
       setError(formatSupabaseError(caughtError, "Upload failed."));

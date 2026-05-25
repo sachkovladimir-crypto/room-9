@@ -5,12 +5,16 @@ export type SignalIntent = {
   bpmRange?: [number, number] | null;
   city?: string | null;
   feeBand?: string | null;
+  mode?: SignalAudienceMode;
   playlistTrackIds?: string[];
   preferredGenres?: string[];
   roomTypes?: string[];
   savedMomentTrackIds?: string[];
   savedTrackIds?: string[];
+  slotType?: EventLineupSlotType | null;
 };
+
+export type SignalAudienceMode = "listener" | "organizer";
 
 export type TrackSignalInput = {
   dj?: Pick<DjProfile, "bpm_range" | "city" | "country" | "genres" | "is_available" | "price" | "profile_theme" | "stage_name"> | null;
@@ -22,6 +26,10 @@ export type TrackSignalScore = {
   bookingFit: number;
   energy: number;
   featureConfidence: number;
+  listenerFit: number;
+  mode: SignalAudienceMode;
+  organizerFit: number;
+  primaryLabel: string;
   reasons: string[];
   roomFit: string[];
   soundMatch: number;
@@ -118,6 +126,7 @@ export function createSignalIntentFromFilters({
   city,
   feeBand,
   genre,
+  mode = "listener",
   playlistTrackIds = [],
   roomTypes = [],
   savedMomentTrackIds = [],
@@ -127,6 +136,7 @@ export function createSignalIntentFromFilters({
   city?: string | null;
   feeBand?: string | null;
   genre?: string | null;
+  mode?: SignalAudienceMode;
   playlistTrackIds?: string[];
   roomTypes?: string[];
   savedMomentTrackIds?: string[];
@@ -136,6 +146,7 @@ export function createSignalIntentFromFilters({
     bpmRange: parseBpmRangeLabel(bpmFilter),
     city: city && city !== "All" ? city : null,
     feeBand: feeBand && feeBand !== "Any" ? feeBand : null,
+    mode,
     playlistTrackIds,
     preferredGenres: genre && genre !== "All" ? [genre] : [],
     roomTypes,
@@ -146,6 +157,14 @@ export function createSignalIntentFromFilters({
 
 export function scoreTrackSignal(input: TrackSignalInput, intent: SignalIntent = {}): TrackSignalScore {
   return scoreTrackSignalWithFeatures(input, intent);
+}
+
+export function scoreTrackForListener(input: TrackSignalInput, intent: SignalIntent = {}) {
+  return scoreTrackSignalWithFeatures(input, { ...intent, mode: "listener" });
+}
+
+export function scoreTrackForOrganizer(input: TrackSignalInput, intent: SignalIntent = {}) {
+  return scoreTrackSignalWithFeatures(input, { ...intent, mode: "organizer" });
 }
 
 export function scoreTrackSignalWithFeatures({ dj, features, work }: TrackSignalInput, intent: SignalIntent = {}): TrackSignalScore {
@@ -170,6 +189,9 @@ export function scoreTrackSignalWithFeatures({ dj, features, work }: TrackSignal
   const roomFit = getRoomFitScore(text, intent.roomTypes, audioFeatures);
   const behavior = getBehaviorScore(work.id, intent);
   const trust = getBookingTrustScore(dj, intent);
+  const popularity = getPopularityScore(work);
+  const saveIntent = getSaveIntentScore(work.id, intent);
+  const slotFit = getSlotFitScore({ bpm, energy, features: audioFeatures, intent, text });
 
   const soundMatch = weightedAverage([
     [genreScore, 0.2],
@@ -179,21 +201,39 @@ export function scoreTrackSignalWithFeatures({ dj, features, work }: TrackSignal
     [behavior, 0.2],
     [trust, 0.1]
   ]);
-  const bookingFit = weightedAverage([
-    [soundMatch, 0.45],
-    [dj?.is_available ? 1 : 0.45, 0.15],
-    [trust, 0.2],
-    [getFeeFitScore(dj?.price ?? null, intent.feeBand), 0.1],
-    [getCityFitScore(dj, intent.city), 0.1]
+  const listenerFit = weightedAverage([
+    [genreScore, 0.24],
+    [bpmScore, 0.14],
+    [behavior, 0.2],
+    [saveIntent, 0.14],
+    [popularity, 0.1],
+    [energy / 10, 0.1],
+    [(audioFeatures.confidence ?? 0.52), 0.08]
   ]);
-  const reasons = buildSignalReasons({ bpm, bpmScore, bookingFit, behavior, features: audioFeatures, genreScore, roomFit, trust });
+  const bookingFit = weightedAverage([
+    [soundMatch, 0.24],
+    [slotFit, 0.24],
+    [dj?.is_available ? 1 : 0.45, 0.15],
+    [trust, 0.18],
+    [getFeeFitScore(dj?.price ?? null, intent.feeBand), 0.1],
+    [getCityFitScore(dj, intent.city), 0.09]
+  ]);
+  const mode = intent.mode ?? "listener";
+  const reasons =
+    mode === "organizer"
+      ? buildOrganizerSignalReasons({ bpm, bookingFit, features: audioFeatures, intent, roomFit, slotFit, trust })
+      : buildListenerSignalReasons({ behavior, bpm, bpmScore, features: audioFeatures, genreScore, listenerFit, popularity, saveIntent });
   const tags = buildSignalTags({ bpm, energy, features: audioFeatures, text });
-  const sortScore = Math.round((soundMatch * 0.68 + bookingFit * 0.32) * 100);
+  const sortScore = Math.round((mode === "organizer" ? bookingFit : listenerFit) * 100);
 
   return {
     bookingFit: Math.round(bookingFit * 100),
     energy: roundOne(energy),
     featureConfidence: Math.round((audioFeatures.confidence ?? 0.52) * 100),
+    listenerFit: Math.round(listenerFit * 100),
+    mode,
+    organizerFit: Math.round(bookingFit * 100),
+    primaryLabel: mode === "organizer" ? "booking fit" : "taste match",
     reasons,
     roomFit: audioFeatures.room_fit ?? [],
     soundMatch: Math.round(soundMatch * 100),
@@ -610,6 +650,56 @@ function getBehaviorScore(trackId: string, intent: SignalIntent) {
   return 0.42;
 }
 
+function getSaveIntentScore(trackId: string, intent: SignalIntent) {
+  let score = 0.34;
+  if (intent.savedTrackIds?.includes(trackId)) {
+    score += 0.28;
+  }
+  if (intent.playlistTrackIds?.includes(trackId)) {
+    score += 0.24;
+  }
+  if (intent.savedMomentTrackIds?.includes(trackId)) {
+    score += 0.18;
+  }
+  return Math.min(1, score);
+}
+
+function getPopularityScore(work: Pick<Work, "like_count" | "play_count">) {
+  const plays = Math.log10(Math.max(1, work.play_count ?? 0) + 1) / 5;
+  const likes = Math.log10(Math.max(1, work.like_count ?? 0) + 1) / 4;
+  return Math.max(0.28, Math.min(1, plays * 0.58 + likes * 0.42));
+}
+
+function getSlotFitScore({
+  bpm,
+  energy,
+  features,
+  intent,
+  text
+}: {
+  bpm: number | null;
+  energy: number;
+  features: Pick<TrackAudioFeature, "room_fit" | "sound_dna">;
+  intent: SignalIntent;
+  text: string;
+}) {
+  if (!intent.slotType) {
+    return intent.roomTypes?.length ? getRoomFitScore(text, intent.roomTypes, features) : 0.68;
+  }
+
+  const preferred = getSlotPreference(intent.slotType);
+  const bpmScore = getBpmScore(bpm, preferred.bpmRange);
+  const energyScore = Math.max(0.25, 1 - Math.abs(energy - preferred.energy) / 5);
+  const roomText = normalizeText([text, ...(features.room_fit ?? []), ...(features.sound_dna ?? [])]);
+  const keywordScore = preferred.keywords.some((keyword) => roomText.includes(keyword)) ? 1 : 0.52;
+
+  return weightedAverage([
+    [bpmScore, 0.3],
+    [energyScore, 0.36],
+    [keywordScore, 0.34]
+  ]);
+}
+
 function getBookingTrustScore(
   dj?: Pick<DjProfile, "city" | "country" | "genres" | "is_available" | "price" | "profile_theme" | "stage_name"> | null,
   intent: SignalIntent = {}
@@ -697,46 +787,80 @@ function getFeatureNumber(value?: number | null) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function buildSignalReasons({
+function buildListenerSignalReasons({
+  behavior,
   bpm,
   bpmScore,
-  bookingFit,
-  behavior,
   features,
   genreScore,
-  roomFit,
-  trust
+  listenerFit,
+  popularity,
+  saveIntent
 }: {
+  behavior: number;
   bpm: number | null;
   bpmScore: number;
-  bookingFit: number;
-  behavior: number;
   features?: Pick<TrackAudioFeature, "confidence" | "room_fit" | "sound_dna"> | null;
   genreScore: number;
-  roomFit: number;
-  trust: number;
+  listenerFit: number;
+  popularity: number;
+  saveIntent: number;
 }) {
   const reasons: string[] = [];
   if (genreScore > 0.9) {
-    reasons.push("Genre matches your sound profile");
+    reasons.push("Matches your listening taste");
   }
   if (bpm && bpmScore > 0.9) {
-    reasons.push(`${bpm} BPM fits the active range`);
+    reasons.push(`${bpm} BPM fits your current tempo zone`);
   }
-  if (roomFit > 0.8) {
-    reasons.push("Strong room-fit signal");
+  if (behavior > 0.8 || saveIntent > 0.7) {
+    reasons.push("Close to your saved tracks, moments or playlists");
+  }
+  if (popularity > 0.58) {
+    reasons.push("Strong listener response signal");
   }
   if ((features?.confidence ?? 0) >= 0.6 && features?.sound_dna?.length) {
     reasons.push(`Sound DNA: ${features.sound_dna.slice(0, 2).join(" / ")}`);
   }
-  if (behavior > 0.8) {
-    reasons.push("Already appears in your saved archive");
+
+  return reasons.length > 0 ? reasons.slice(0, 3) : [`${formatSignalScore(listenerFit * 100)} listener taste match`];
+}
+
+function buildOrganizerSignalReasons({
+  bpm,
+  bookingFit,
+  features,
+  intent,
+  roomFit,
+  slotFit,
+  trust
+}: {
+  bpm: number | null;
+  bookingFit: number;
+  features?: Pick<TrackAudioFeature, "confidence" | "room_fit" | "sound_dna"> | null;
+  intent: SignalIntent;
+  roomFit: number;
+  slotFit: number;
+  trust: number;
+}) {
+  const reasons: string[] = [];
+  if (intent.slotType && slotFit > 0.75) {
+    reasons.push(`Fits ${getSlotPreference(intent.slotType).label.replace(" signal", "")} programming`);
+  }
+  if (bpm && intent.bpmRange && getBpmScore(bpm, intent.bpmRange) > 0.9) {
+    reasons.push(`${bpm} BPM fits the event range`);
+  }
+  if (roomFit > 0.8) {
+    reasons.push("Strong room-fit for the event context");
   }
   if (trust > 0.74 || bookingFit > 0.78) {
     reasons.push("Booking-ready artist signal");
   }
+  if ((features?.confidence ?? 0) >= 0.6 && features?.sound_dna?.length) {
+    reasons.push(`Briefable Sound DNA: ${features.sound_dna.slice(0, 2).join(" / ")}`);
+  }
 
-  return reasons.length > 0 ? reasons.slice(0, 3) : ["Balanced signal from metadata-derived audio profile"];
+  return reasons.length > 0 ? reasons.slice(0, 3) : ["Balanced event fit from audio, room and artist signals"];
 }
 
 function buildSignalTags({

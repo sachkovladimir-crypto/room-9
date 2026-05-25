@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { MissingConfigNotice } from "@/components/AuthNotice";
 import { useAudioPlayer } from "@/components/GlobalAudioPlayer";
+import { AudioAnalysisStatus, type AudioAnalysisStatusValue } from "@/components/music-lab/AudioAnalysisStatus";
 import { PlayGlyph } from "@/components/room9-icons";
 import {
   Button,
@@ -20,6 +21,10 @@ import {
 } from "@/components/room9-ui";
 import { Room9Waveform } from "@/components/Room9Waveform";
 import { WorkspaceOpsHeader, WorkspacePageFrame } from "@/components/workspace/WorkspaceShell";
+import { analyzeAudioSource, type RawAudioAnalysis } from "@/lib/audioAnalyzer";
+import { requestTrackAudioAnalysis, type AudioAnalyzeResponse } from "@/lib/audioAnalysisClient";
+import { buildAudioIntelligenceModel, rankSimilarAudioTracks } from "@/lib/audioIntelligence";
+import { getTrackMetadata, interpretRawAudioAnalysis } from "@/lib/llmInterpreter";
 import { getWorkCoverUrl } from "@/lib/media";
 import { loadRoleAccess } from "@/lib/roleAccess";
 import { deriveTrackAudioFeatures } from "@/lib/trackAudioFeatures";
@@ -116,6 +121,9 @@ export default function MusicLabPage() {
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStatusByWorkId, setAnalysisStatusByWorkId] = useState<Record<string, AudioAnalysisStatusValue>>({});
+  const [audioAnalysis, setAudioAnalysis] = useState<RawAudioAnalysis | null>(null);
   const { playTrack, seekTo, setSelectedTimestamp } = useAudioPlayer();
 
   const selectedWork = useMemo(
@@ -123,6 +131,46 @@ export default function MusicLabPage() {
     [selectedWorkId, works]
   );
   const selectedFeature = selectedWork ? featuresByWorkId[selectedWork.id] ?? null : null;
+  const selectedAnalysisStatus: AudioAnalysisStatusValue = selectedWork
+    ? analysisStatusByWorkId[selectedWork.id] ??
+      normalizeAnalysisStatus(selectedFeature?.analysis_status) ??
+      (selectedFeature?.analyzed_at || selectedWork.waveform_analyzed_at ? "complete" : "pending")
+    : "pending";
+  const selectedAnalysisDecoder = useMemo(
+    () => audioAnalysis?.decoder ?? getFeatureDecoderLabel(selectedFeature) ?? (selectedFeature?.source ? String(selectedFeature.source) : null),
+    [audioAnalysis?.decoder, selectedFeature]
+  );
+  const analysisFeature = useMemo(
+    () => (selectedWork && audioAnalysis ? buildFeatureFromAnalysis(selectedWork, audioAnalysis, djProfile) : null),
+    [audioAnalysis, djProfile, selectedWork]
+  );
+  const selectedIntelligenceFeature = analysisFeature ?? selectedFeature;
+  const audioIntelligence = useMemo(
+    () =>
+      selectedWork
+        ? buildAudioIntelligenceModel({
+            dj: djProfile,
+            feature: selectedIntelligenceFeature,
+            work: selectedWork
+          })
+        : null,
+    [djProfile, selectedIntelligenceFeature, selectedWork]
+  );
+  const similarLabTracks = useMemo(
+    () =>
+      selectedWork
+        ? rankSimilarAudioTracks({
+            djLookup: djProfile ? { [djProfile.id]: djProfile } : {},
+            featureLookup: analysisFeature
+              ? { ...featuresByWorkId, [analysisFeature.work_id]: analysisFeature }
+              : featuresByWorkId,
+            limit: 3,
+            source: selectedWork,
+            works
+          })
+        : [],
+    [analysisFeature, djProfile, featuresByWorkId, selectedWork, works]
+  );
   const selectedCue = cues.find((cue) => cue.id === selectedCueId) ?? cues[2] ?? null;
   const duration = selectedWork?.duration_seconds ?? 360;
   const cueRatio = selectedCue ? clampTrackTimestamp(selectedCue.seconds, duration) / Math.max(1, duration) : 0.61;
@@ -145,13 +193,17 @@ export default function MusicLabPage() {
     const density = parseMetric(metrics.density) ?? 0;
     const primaryRoom = roomTags[0] ?? "room tba";
     const primaryTag = soundTags[0] ?? selectedWork?.genre ?? "sound tba";
-    const bestSlot = energy >= 8 ? "Peak / closing slot" : groove >= 7 ? "Support / warmup slot" : "Opening / listening slot";
+    const bestSlot =
+      audioIntelligence?.bestSlot.slot ??
+      (energy >= 8 ? "Peak / closing slot" : groove >= 7 ? "Support / warmup slot" : "Opening / listening slot");
 
     return [
       {
         label: "Recommendation bias",
-        value: `${primaryTag} / ${Math.round(Math.max(energy, groove, density))}/10`,
-        copy: "Signal Engine will push this track toward listeners and events with matching taste markers."
+        value: audioIntelligence?.setRole ?? `${primaryTag} / ${Math.round(Math.max(energy, groove, density))}/10`,
+        copy:
+          audioIntelligence?.promoterReadout ??
+          "Signal Engine will push this track toward listeners and events with matching taste markers."
       },
       {
         label: "Best event slot",
@@ -166,10 +218,24 @@ export default function MusicLabPage() {
       {
         label: "Brief readiness",
         value: selectedCue ? `${formatTrackTime(selectedCue.seconds)} ${getCompactCueTitle(selectedCue)}` : "Cue pending",
-        copy: "This cue can become an Atmosphere Brief on Track Page, Sound Vault, Event Desk and Booking Case."
+        copy: audioIntelligence?.organizerBrief ?? "This cue can become an Atmosphere Brief on Track Page, Sound Vault, Event Desk and Booking Case."
       }
     ];
-  }, [dominantEq.label, dominantEq.range, metrics.density, metrics.energy, metrics.groove, roomTags, selectedCue, selectedWork?.genre, soundTags]);
+  }, [
+    audioIntelligence?.bestSlot.slot,
+    audioIntelligence?.organizerBrief,
+    audioIntelligence?.promoterReadout,
+    audioIntelligence?.setRole,
+    dominantEq.label,
+    dominantEq.range,
+    metrics.density,
+    metrics.energy,
+    metrics.groove,
+    roomTags,
+    selectedCue,
+    selectedWork?.genre,
+    soundTags
+  ]);
   const outputTags = useMemo(() => Array.from(new Set([...soundTags, ...roomTags])).slice(0, 8), [roomTags, soundTags]);
 
   useEffect(() => {
@@ -319,6 +385,10 @@ export default function MusicLabPage() {
     setSelectedCueId("peak");
   }, [djProfile, selectedFeature, selectedWork]);
 
+  useEffect(() => {
+    setAudioAnalysis(null);
+  }, [selectedWorkId]);
+
   if (!hasSupabaseConfig()) {
     return <MissingConfigNotice />;
   }
@@ -379,6 +449,90 @@ export default function MusicLabPage() {
     window.setTimeout(() => seekTo(safeSeconds), 120);
   }
 
+  function applyAnalysisResult(result: AudioAnalyzeResponse, fallbackWork: Work) {
+    const analysis = result.raw;
+    const updatedWork: Work = {
+      ...fallbackWork,
+      bpm: result.work.bpm ?? fallbackWork.bpm ?? (analysis.estimatedBpm ? String(Math.round(analysis.estimatedBpm)) : fallbackWork.bpm),
+      duration_seconds: result.work.duration_seconds ?? fallbackWork.duration_seconds ?? analysis.durationSeconds,
+      waveform_analyzed_at: result.work.waveform_analyzed_at,
+      waveform_peaks: result.work.waveform_peaks ?? analysis.waveformPeaks
+    };
+
+    setAudioAnalysis(analysis);
+    setFeaturesByWorkId((current) => ({ ...current, [fallbackWork.id]: result.feature }));
+    setWorks((current) => current.map((work) => (work.id === fallbackWork.id ? updatedWork : work)));
+    setMetrics({
+      darkness: String(analysis.metrics.darkness),
+      density: String(analysis.metrics.density),
+      energy: String(analysis.metrics.energy),
+      groove: String(analysis.metrics.groove),
+      intensity: String(analysis.metrics.intensity),
+      roomFit: analysis.roomFit.join(", "),
+      soundDna: analysis.soundDna.join(", ")
+    });
+    setEq({
+      air: String(analysis.eqProfile.air),
+      low: String(analysis.eqProfile.low),
+      mid: String(analysis.eqProfile.mid),
+      presence: String(analysis.eqProfile.presence),
+      sub: String(analysis.eqProfile.sub)
+    });
+    setAnalysisStatusByWorkId((current) => ({ ...current, [fallbackWork.id]: "complete" }));
+
+    return updatedWork;
+  }
+
+  async function analyzeSelectedWork() {
+    if (!selectedWork?.link) {
+      setNotice("Attach an audio file before running analysis.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisStatusByWorkId((current) => ({ ...current, [selectedWork.id]: "analyzing" }));
+    setError("");
+    setNotice("");
+
+    try {
+      const result = await requestTrackAudioAnalysis({
+        audioUrl: selectedWork.link,
+        metadata: getTrackMetadata(selectedWork, djProfile?.stage_name),
+        workId: selectedWork.id
+      });
+      const updatedWork = applyAnalysisResult(result, selectedWork);
+
+      if (shouldRefineInBrowser(result.raw)) {
+        setNotice("Server metadata pass complete. Refining waveform in the browser decoder...");
+        const browserAnalysis = await analyzeAudioSource(selectedWork.link, 156);
+
+        if (browserAnalysis.source === "decoded-audio") {
+          const refinedResult = await requestTrackAudioAnalysis({
+            audioUrl: selectedWork.link,
+            clientAnalysis: browserAnalysis,
+            metadata: getTrackMetadata(updatedWork, djProfile?.stage_name),
+            workId: selectedWork.id
+          });
+          applyAnalysisResult(refinedResult, updatedWork);
+          setNotice("Audio analyzed with browser waveform fallback. Music Lab now has BPM, EQ, room fit, slot fit and organizer readouts.");
+          return;
+        }
+      }
+
+      setNotice(
+        result.raw.analysisMode === "metadata"
+          ? "Metadata analysis saved. Use a WAV file or browser-supported audio to refine waveform detail."
+          : "Audio analyzed. Music Lab now has BPM, EQ, room fit, slot fit and DJ/organizer readouts."
+      );
+    } catch (caughtError) {
+      logSupabaseError("Music Lab audio analysis failed", caughtError);
+      setAnalysisStatusByWorkId((current) => ({ ...current, [selectedWork.id]: "failed" }));
+      setError(formatSupabaseError(caughtError, "Could not analyze this audio file."));
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }
+
   async function saveLab() {
     if (!selectedWork) {
       return;
@@ -391,8 +545,12 @@ export default function MusicLabPage() {
     try {
       const supabase = getSupabase();
       const payload = {
-        bpm: parseMetric(selectedWork.bpm),
-        confidence: 0.84,
+        analysis_error: selectedFeature?.analysis_error ?? null,
+        analysis_requested_at: selectedFeature?.analysis_requested_at ?? null,
+        analysis_status: audioAnalysis ? "complete" : selectedFeature?.analysis_status ?? "pending",
+        analyzed_at: audioAnalysis ? new Date().toISOString() : selectedFeature?.analyzed_at ?? null,
+        bpm: audioAnalysis?.estimatedBpm ?? parseMetric(selectedWork.bpm),
+        confidence: audioAnalysis?.bpmConfidence ?? 0.84,
         darkness: parseMetric(metrics.darkness),
         density: parseMetric(metrics.density),
         energy: parseMetric(metrics.energy),
@@ -419,6 +577,33 @@ export default function MusicLabPage() {
             timestampLabel: formatTrackTime(clampTrackTimestamp(cue.seconds, selectedWork.duration_seconds))
           })),
           eq_profile: normalizeEqProfile(eq),
+          audio_intelligence: audioIntelligence
+            ? {
+                bpmConfidence: audioIntelligence.bpmConfidence,
+                bestSlot: audioIntelligence.bestSlot,
+                energyBand: audioIntelligence.energyBand,
+                keySignals: audioIntelligence.keySignals,
+                organizerBrief: audioIntelligence.organizerBrief,
+                setRole: audioIntelligence.setRole,
+                transitionProfile: audioIntelligence.transitionProfile
+              }
+            : null,
+          audio_analysis:
+            audioAnalysis
+              ? {
+                  beatGrid: audioAnalysis.beatGrid,
+                  bpmConfidence: audioAnalysis.bpmConfidence,
+                  danceability: audioAnalysis.danceability,
+                  dropTimestamps: audioAnalysis.dropTimestamps,
+                  durationSeconds: audioAnalysis.durationSeconds,
+                  eqProfile: audioAnalysis.eqProfile,
+                  estimatedBpm: audioAnalysis.estimatedBpm,
+                  key: audioAnalysis.key,
+                  metrics: audioAnalysis.metrics,
+                  spectralCentroid: audioAnalysis.spectralCentroid,
+                  source: audioAnalysis.source
+                }
+              : null,
           lab_note: labNote,
           lab_updated_at: new Date().toISOString()
         },
@@ -465,10 +650,10 @@ export default function MusicLabPage() {
                 Sound Vault
               </ButtonLink>
               {selectedWork ? (
-                <ButtonLink href={`/track/${selectedWork.id}`} variant="secondary">
-                  Public Track
-                </ButtonLink>
-              ) : null}
+              <ButtonLink href={`/track/${selectedWork.id}`} variant="secondary">
+                Public Track
+              </ButtonLink>
+            ) : null}
               <Button disabled={!selectedWork} loading={isSaving} onClick={saveLab} type="button" variant="primary">
                 Save Lab Model
               </Button>
@@ -498,13 +683,17 @@ export default function MusicLabPage() {
             action="Upload Track"
           />
         ) : (
-          <div className="grid gap-room-4 2xl:grid-cols-[280px_minmax(0,1fr)_340px]">
+          <div className="grid gap-room-4 2xl:grid-cols-[300px_minmax(0,1fr)_340px]">
             <Panel className="p-room-3">
               <SectionHeader eyebrow="Source tracks" title="Lab Queue" />
               <div className="mt-room-3 space-y-room-1">
                 {works.map((work) => {
                   const active = work.id === selectedWork?.id;
                   const feature = featuresByWorkId[work.id];
+                  const status =
+                    analysisStatusByWorkId[work.id] ??
+                    normalizeAnalysisStatus(feature?.analysis_status) ??
+                    (feature?.analyzed_at || work.waveform_analyzed_at ? "complete" : "pending");
                   return (
                     <button
                       className={cx(
@@ -514,15 +703,20 @@ export default function MusicLabPage() {
                       key={work.id}
                       onClick={() => setSelectedWorkId(work.id)}
                       type="button"
-                    >
+                      >
                       <Text as="span" className="room-one-line block text-sm" variant="title">
                         {work.title || "Untitled track"}
                       </Text>
                       <span className="mt-1 block font-mono text-[9px] uppercase text-mutedText">
                         {[work.genre, work.bpm ? `${work.bpm} BPM` : null, work.visibility].filter(Boolean).join(" / ")}
                       </span>
-                      <span className={cx("mt-2 inline-flex font-mono text-[9px] uppercase", feature ? "text-acidGreen" : "text-mutedText")}>
-                        {feature ? "Manual model saved" : "Metadata model"}
+                      <span className="mt-2 flex min-w-0 items-center justify-between gap-room-2">
+                        <span className={cx("room-one-line font-mono text-[9px] uppercase", status === "complete" ? "text-acidGreen" : "text-mutedText")}>
+                          {status === "complete" ? "Analyzed" : status === "failed" ? "Failed" : "Needs analysis"}
+                        </span>
+                        <StatusBadge status={status === "complete" ? "complete" : status === "failed" ? "blocked" : status === "analyzing" ? "current" : "pending"}>
+                          {status}
+                        </StatusBadge>
                       </span>
                     </button>
                   );
@@ -542,7 +736,17 @@ export default function MusicLabPage() {
                       {[djProfile.stage_name, selectedWork?.genre, selectedWork?.bpm ? `${selectedWork.bpm} BPM` : null].filter(Boolean).join(" / ")}
                     </Text>
                   </div>
-                  <div className="flex flex-wrap gap-room-1">
+                  <div className="flex flex-wrap gap-room-1 lg:justify-end">
+                    <Button
+                      className="min-w-[150px]"
+                      disabled={!selectedWork?.link || isAnalyzing}
+                      loading={isAnalyzing}
+                      onClick={analyzeSelectedWork}
+                      type="button"
+                      variant="primary"
+                    >
+                      Run Analysis
+                    </Button>
                     {selectedCue ? (
                       <Button onClick={() => playCue(selectedCue)} type="button" variant="secondary">
                         <PlayGlyph className="h-3.5 w-3.5" />
@@ -554,6 +758,34 @@ export default function MusicLabPage() {
                         Open Track
                       </ButtonLink>
                     ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-room-3 grid gap-room-2 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
+                  <AudioAnalysisStatus
+                    analyzedAt={selectedFeature?.analyzed_at ?? selectedWork?.waveform_analyzed_at}
+                    className="min-h-full"
+                    error={selectedFeature?.analysis_error}
+                    source={selectedAnalysisDecoder}
+                    status={isAnalyzing ? "analyzing" : selectedAnalysisStatus}
+                  />
+                  <div className="border border-roomBorder bg-black p-room-2">
+                    <Text variant="uiLabel">BPM / confidence</Text>
+                    <Text className="mt-2 text-xl" variant="title">
+                      {audioAnalysis?.estimatedBpm ? Math.round(audioAnalysis.estimatedBpm) : selectedFeature?.bpm ?? selectedWork?.bpm ?? "Pending"}
+                    </Text>
+                    <Text className="mt-1" variant="small">
+                      {audioAnalysis?.bpmConfidence ? `${Math.round(audioAnalysis.bpmConfidence * 100)}% confidence` : "Run analysis to update"}
+                    </Text>
+                  </div>
+                  <div className="border border-roomBorder bg-black p-room-2">
+                    <Text variant="uiLabel">Decoder</Text>
+                    <Text className="room-clamp-2 mt-2 text-lg" variant="title">
+                      {selectedAnalysisDecoder ?? "Pending"}
+                    </Text>
+                    <Text className="mt-1" variant="small">
+                      {selectedAnalysisStatus === "complete" ? "Stored in track_audio_features" : "Writes Signal Engine data"}
+                    </Text>
                   </div>
                 </div>
 
@@ -574,7 +806,7 @@ export default function MusicLabPage() {
                   {cues.map((cue) => (
                     <button
                       className={cx(
-                        "min-h-[120px] min-w-0 overflow-hidden border p-room-2 text-left transition",
+                        "min-h-[96px] min-w-0 overflow-hidden border p-room-2 text-left transition",
                         cue.id === selectedCueId
                           ? "border-acidGreen bg-acidGreen text-black"
                           : "border-roomBorder bg-black text-paperWhite hover:border-paperWhite"
@@ -584,7 +816,7 @@ export default function MusicLabPage() {
                       type="button"
                     >
                       <span className="room-one-line block font-mono text-[10px] uppercase">{formatTrackTime(cue.seconds)}</span>
-                      <span className="room-one-line mt-room-2 block font-display text-[clamp(1rem,1.15vw,1.25rem)] uppercase leading-none">
+                      <span className="room-one-line mt-room-2 block font-display text-lg uppercase leading-none">
                         {getCompactCueTitle(cue)}
                       </span>
                       <span className={cx("room-clamp-2 mt-room-2 block font-mono text-[9px] uppercase", cue.id === selectedCueId ? "text-black/70" : "text-mutedText")}>
@@ -638,6 +870,82 @@ export default function MusicLabPage() {
             </div>
 
             <aside className="space-y-room-4">
+              {audioIntelligence ? (
+                <Panel className="p-room-3">
+                  <SectionHeader eyebrow="Audio intelligence" title="DJ / Organizer Readout" />
+                  <div className="mt-room-3 space-y-room-3">
+                    <div className="border border-acidGreen bg-black p-room-2">
+                      <Text variant="uiLabel">Set role</Text>
+                      <Text className="mt-1 break-words text-xl" variant="title">
+                        {audioIntelligence.setRole}
+                      </Text>
+                      <Text className="mt-2" variant="small">
+                        {audioIntelligence.djReadout}
+                      </Text>
+                    </div>
+                    <div className="grid grid-cols-2 gap-room-2">
+                      <div className="border border-roomBorder bg-black p-room-2">
+                        <Text variant="uiLabel">Tempo lock</Text>
+                        <Text className="mt-1" variant="title">
+                          {audioIntelligence.bpm ? `${Math.round(audioIntelligence.bpm)} BPM` : "Pending"}
+                        </Text>
+                        <Text className="mt-1" variant="small">
+                          {Math.round(audioIntelligence.bpmConfidence * 100)}% confidence
+                        </Text>
+                      </div>
+                      <div className="border border-roomBorder bg-black p-room-2">
+                        <Text variant="uiLabel">Transition risk</Text>
+                        <Text className="mt-1 capitalize" variant="title">
+                          {audioIntelligence.transitionProfile.risk}
+                        </Text>
+                        <Text className="mt-1" variant="small">
+                          {audioIntelligence.transitionProfile.mixIn}
+                        </Text>
+                      </div>
+                    </div>
+                    <div>
+                      <Text variant="uiLabel">Organizer brief</Text>
+                      <Text className="mt-2" variant="small">
+                        {audioIntelligence.organizerBrief}
+                      </Text>
+                    </div>
+                    <div className="space-y-room-1">
+                      {audioIntelligence.eventSlotFit.slice(0, 3).map((slot) => (
+                        <div className="border border-roomBorder bg-black p-room-2" key={slot.slot}>
+                          <div className="flex items-center justify-between gap-room-2">
+                            <Text variant="uiLabel">{slot.slot}</Text>
+                            <span className="font-mono text-xs text-acidGreen">{slot.fit}%</span>
+                          </div>
+                          <Text className="mt-1" variant="small">
+                            {slot.reasons.slice(0, 2).join(" / ")}
+                          </Text>
+                        </div>
+                      ))}
+                    </div>
+                    {similarLabTracks.length > 0 ? (
+                      <div>
+                        <Text variant="uiLabel">Similar in catalog</Text>
+                        <div className="mt-room-2 space-y-room-1">
+                          {similarLabTracks.map((match) => (
+                            <div className="flex min-w-0 items-center justify-between gap-room-2 border border-roomBorder bg-black p-room-2" key={match.target.id}>
+                              <div className="min-w-0">
+                                <Text className="room-one-line" variant="title">
+                                  {match.target.title || "Untitled track"}
+                                </Text>
+                                <Text className="room-one-line mt-1" variant="small">
+                                  {match.reasons.slice(0, 2).join(" / ")}
+                                </Text>
+                              </div>
+                              <span className="shrink-0 font-mono text-xs text-acidGreen">{match.score}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </Panel>
+              ) : null}
+
               <Panel className="p-room-3">
                 <SectionHeader eyebrow="Signal model" title="Recommendation Inputs" />
                 <div className="mt-room-3 grid gap-room-2">
@@ -842,4 +1150,60 @@ function normalizeEqProfile(eq: LabEq) {
 function readEqValue(value: unknown, fallback: string) {
   const parsed = parseMetric(typeof value === "number" || typeof value === "string" ? value : fallback);
   return String(parsed ?? fallback);
+}
+
+function getFeatureDecoderLabel(feature?: TrackAudioFeature | null) {
+  const profile = feature?.waveform_profile;
+  if (!profile || typeof profile !== "object") {
+    return null;
+  }
+
+  const record = profile as {
+    audio_analysis?: { decoder?: unknown; analysisMode?: unknown; source?: unknown };
+    decoder?: unknown;
+    analyzer?: unknown;
+  };
+  const decoder = record.decoder ?? record.audio_analysis?.decoder ?? record.analyzer;
+  return typeof decoder === "string" && decoder.trim() ? decoder : null;
+}
+
+function buildFeatureFromAnalysis(work: Work, analysis: RawAudioAnalysis, djProfile: DjProfile | null): TrackAudioFeature {
+  const interpreted = interpretRawAudioAnalysis({
+    metadata: getTrackMetadata(work, djProfile?.stage_name),
+    raw: analysis,
+    workId: work.id
+  });
+
+  return {
+    ...interpreted,
+    analysis_error: null,
+    analysis_requested_at: new Date().toISOString(),
+    analysis_status: analysis.source === "fallback" ? "pending" : "complete",
+    created_at: new Date().toISOString(),
+    id: `analysis-${work.id}`,
+    updated_at: new Date().toISOString(),
+    waveform_profile: {
+      ...(interpreted.waveform_profile ?? {}),
+      audio_analysis: analysis,
+      beatGridPreview: analysis.beatGrid,
+      bpmConfidence: analysis.bpmConfidence,
+      decoder: analysis.decoder,
+      durationSeconds: analysis.durationSeconds,
+      eq_profile: analysis.eqProfile,
+      waveformPeaks: analysis.waveformPeaks
+    },
+    work_id: work.id
+  };
+}
+
+function normalizeAnalysisStatus(status?: string | null): AudioAnalysisStatusValue | null {
+  if (status === "pending" || status === "analyzing" || status === "complete" || status === "failed") {
+    return status;
+  }
+
+  return null;
+}
+
+function shouldRefineInBrowser(raw: RawAudioAnalysis) {
+  return raw.analysisMode === "metadata" || raw.source === "fallback" || raw.soundDna.includes("needs waveform decode");
 }

@@ -64,6 +64,10 @@ export function deriveTrackAudioFeatures(
   const soundDna = inferSoundDna({ bpm, energy, roomFit, text });
 
   return {
+    analyzed_at: null,
+    analysis_error: null,
+    analysis_requested_at: null,
+    analysis_status: waveform.length > 0 ? "complete" : "pending",
     bpm,
     confidence: waveform.length > 0 ? 0.66 : 0.52,
     darkness: roundOne(darkness),
