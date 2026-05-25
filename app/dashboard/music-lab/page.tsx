@@ -495,39 +495,39 @@ export default function MusicLabPage() {
     setNotice("");
 
     try {
+      setNotice("Decoding audio in the browser first. Server will only persist the analysis model...");
+      const browserAnalysis = await analyzeAudioSource(selectedWork.link, 156);
       const result = await requestTrackAudioAnalysis({
-        audioUrl: selectedWork.link,
+        clientAnalysis: browserAnalysis,
         metadata: getTrackMetadata(selectedWork, djProfile?.stage_name),
         workId: selectedWork.id
       });
-      const updatedWork = applyAnalysisResult(result, selectedWork);
-
-      if (shouldRefineInBrowser(result.raw)) {
-        setNotice("Server metadata pass complete. Refining waveform in the browser decoder...");
-        const browserAnalysis = await analyzeAudioSource(selectedWork.link, 156);
-
-        if (browserAnalysis.source === "decoded-audio") {
-          const refinedResult = await requestTrackAudioAnalysis({
-            audioUrl: selectedWork.link,
-            clientAnalysis: browserAnalysis,
-            metadata: getTrackMetadata(updatedWork, djProfile?.stage_name),
-            workId: selectedWork.id
-          });
-          applyAnalysisResult(refinedResult, updatedWork);
-          setNotice("Audio analyzed with browser waveform fallback. Music Lab now has BPM, EQ, room fit, slot fit and organizer readouts.");
-          return;
-        }
-      }
+      applyAnalysisResult(result, selectedWork);
 
       setNotice(
-        result.raw.analysisMode === "metadata"
-          ? "Metadata analysis saved. Use a WAV file or browser-supported audio to refine waveform detail."
-          : "Audio analyzed. Music Lab now has BPM, EQ, room fit, slot fit and DJ/organizer readouts."
+        browserAnalysis.source === "decoded-audio"
+          ? "Audio analyzed in browser and saved. Music Lab now has BPM, EQ, room fit, slot fit and organizer readouts."
+          : "Browser metadata model saved. Upload a browser-decodable MP3/WAV for deeper waveform detail."
       );
-    } catch (caughtError) {
-      logSupabaseError("Music Lab audio analysis failed", caughtError);
-      setAnalysisStatusByWorkId((current) => ({ ...current, [selectedWork.id]: "failed" }));
-      setError(formatSupabaseError(caughtError, "Could not analyze this audio file."));
+    } catch {
+      try {
+        setNotice("Browser analysis failed. Trying server fallback once...");
+        const fallbackResult = await requestTrackAudioAnalysis({
+          audioUrl: selectedWork.link,
+          metadata: getTrackMetadata(selectedWork, djProfile?.stage_name),
+          workId: selectedWork.id
+        });
+        applyAnalysisResult(fallbackResult, selectedWork);
+        setNotice(
+          fallbackResult.raw.analysisMode === "metadata"
+            ? "Server metadata model saved. Use a smaller MP3/WAV if you need deeper waveform analysis."
+            : "Server fallback analyzed the audio and saved the Music Lab model."
+        );
+      } catch (fallbackError) {
+        logSupabaseError("Music Lab audio analysis failed", fallbackError);
+        setAnalysisStatusByWorkId((current) => ({ ...current, [selectedWork.id]: "failed" }));
+        setError(formatSupabaseError(fallbackError, "Could not analyze this audio file."));
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -1202,8 +1202,4 @@ function normalizeAnalysisStatus(status?: string | null): AudioAnalysisStatusVal
   }
 
   return null;
-}
-
-function shouldRefineInBrowser(raw: RawAudioAnalysis) {
-  return raw.analysisMode === "metadata" || raw.source === "fallback" || raw.soundDna.includes("needs waveform decode");
 }

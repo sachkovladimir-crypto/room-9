@@ -63,6 +63,17 @@ Status, May 20, 2026:
 - Supabase-facing error text is being moved away from demo/diploma copy toward production-readable diagnostics.
 - Next implementation package should split Sound Vault internals into smaller components/hooks, replace URL-first cover fields with file-upload-first controls, and isolate fake music data behind explicit demo mode.
 
+Status, May 23, 2026:
+
+- V4 Audio Intelligence work started inside Music Lab. The first implementation analyzes real uploaded audio in the browser, extracts waveform peaks, approximate BPM, EQ bands, energy, density, groove, darkness, room fit and Sound DNA.
+- A new Audio Intelligence layer translates raw technical values into language that DJs and organizers understand: set role, tempo lock, transition risk, best event slot, organizer brief and similar tracks inside the DJ catalog.
+- Music Lab now treats analysis as a professional workbench rather than a decorative panel. The output can be stored in `track_audio_features.waveform_profile` and later reused by Explore, Sound Vault, Event Desk, Track Page and Artist Dossier.
+- The current approach is deterministic and explainable. It is suitable for a diploma/pre-release prototype because it avoids pretending to be a full AI model before enough real listening and booking data exists.
+- Next V4 step: feed Audio Intelligence into Explore ranking, Sound Vault recommendations and Event Desk slot matching so the same sound model guides discovery, saved moments and booking decisions.
+- Signal Engine is being split into two explicit audiences: Listener Discovery ranks music by taste, archive behavior, saved moments, playlists, tempo zone and listening response; Organizer Booking Fit ranks sound by event slot, room type, fee, city, artist readiness and bookable atmosphere context.
+- Audio Intelligence is now structured as three separate layers: `audioAnalyzer.ts` extracts raw measurable values from audio, `llmInterpreter.ts` translates those values into a ROOM_9 `TrackAudioFeature` model, and `signalEngine.ts` ranks music differently for listeners and organizers.
+- The LLM layer is intentionally optional. The current prototype uses deterministic interpretation first, while Anthropic/OpenAI-style interpretation can be added later through a server route without exposing API keys in the browser.
+
 ## 2. Main Recommendation
 
 Do not implement a heavy AI system first.
